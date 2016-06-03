@@ -1,14 +1,13 @@
-package main
+package fam100
 
 import (
 	"bytes"
 	"database/sql"
 	"fmt"
-	"hash/crc32"
 	"math/rand"
 	"strings"
 
-	_ "github.com/mattn/go-sqlite3"
+	_ "github.com/mattn/go-sqlite3" // sqlite3 requirement
 )
 
 var (
@@ -16,7 +15,8 @@ var (
 	questionSize int
 )
 
-type question struct {
+// Question for a round
+type Question struct {
 	id            int
 	text          string
 	answers       []answer
@@ -44,8 +44,8 @@ func (a answer) String() string {
 	return b.String()
 }
 
-// loadQuestion db
-func loadQuestion(dbPath string) error {
+// LoadQuestion db
+func LoadQuestion(dbPath string) error {
 	var err error
 	db, err = sql.Open("sqlite3", dbPath)
 	if err != nil {
@@ -66,8 +66,8 @@ func loadQuestion(dbPath string) error {
 	return nil
 }
 
-// getQuestion by id
-func getQuestion(id int) (q question, err error) {
+// GetQuestion by id
+func GetQuestion(id int) (q Question, err error) {
 	rows, err := db.Query(`select soal.id_soal, soal, id_jawaban, jawaban, jawaban_alt, skor 
 		FROM soal inner join jawaban on soal.id_soal = jawaban.id_soal
 		WHERE soal.id_soal = ? ORDER BY skor DESC
@@ -100,7 +100,7 @@ func getQuestion(id int) (q question, err error) {
 }
 
 // check answers gives the score for particular answer to a question
-func (q question) checkAnswer(text string) (correct bool, score, index int) {
+func (q Question) checkAnswer(text string) (correct bool, score, index int) {
 	text = strings.TrimSpace(strings.ToLower(text))
 
 	for i, ans := range q.answers {
@@ -114,13 +114,12 @@ func (q question) checkAnswer(text string) (correct bool, score, index int) {
 	return false, 0, -1
 }
 
-// nextQuestion generates next question randomly by taking into account
+// NextQuestion generates next question randomly by taking into account
 // numbers of game played for particular seed key
-func nextQuestion(seed string, played int) (q question, err error) {
-	seedNumber := crc32.ChecksumIEEE([]byte(seed))
-	r := rand.New(rand.NewSource(int64(seedNumber)))
+func NextQuestion(seed int64, played int) (q Question, err error) {
+	r := rand.New(rand.NewSource(seed))
 	order := r.Perm(questionSize)
 	questionID := order[played%questionSize]
 
-	return getQuestion(questionID)
+	return GetQuestion(questionID)
 }

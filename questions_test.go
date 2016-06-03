@@ -1,4 +1,4 @@
-package main
+package fam100
 
 import (
 	"os"
@@ -6,7 +6,7 @@ import (
 )
 
 func TestMain(m *testing.M) {
-	if err := loadQuestion("fam100.db"); err != nil {
+	if err := LoadQuestion("fam100.db"); err != nil {
 		panic(err)
 	}
 	retCode := m.Run()
@@ -15,7 +15,7 @@ func TestMain(m *testing.M) {
 }
 
 func TestGetQuestion(t *testing.T) {
-	q, err := getQuestion(1)
+	q, err := GetQuestion(1)
 	if err != nil {
 		t.Error(err)
 	}
@@ -29,7 +29,8 @@ func TestGetQuestion(t *testing.T) {
 }
 
 func TestNextQuestion(t *testing.T) {
-	_, err := nextQuestion("foo", 0)
+	seed, played := int64(0), 0
+	_, err := NextQuestion(seed, played)
 	if err != nil {
 		t.Error(err)
 	}
