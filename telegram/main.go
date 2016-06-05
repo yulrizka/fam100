@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"os"
 
@@ -9,7 +10,7 @@ import (
 )
 
 var (
-	minQuorum            = 3 // minimum players to start game
+	minQuorum            = 2 // minimum players to start game
 	telegramInBufferSize = 10000
 	gameInBufferSize     = 10000
 	gameOutBufferSize    = 10000
@@ -87,11 +88,15 @@ func (m *fam100Bot) handleInbox() {
 					quorumPlayer := map[string]bool{msg.From.ID: true}
 					m.channels[chID] = &channel{game: fam100.NewGame(chID, seed, next, m.gameIn, m.gameOut), quorumPlayer: quorumPlayer}
 					m.gameOut <- fam100.Message{Kind: fam100.StateMessage, Text: string(fam100.Created)}
+					text := fmt.Sprintf(fam100.T("%s ok, butuh %d orang lagi"), msg.From.FullName(), minQuorum-len(quorumPlayer))
+					m.out <- bot.Message{Chat: bot.Chat{ID: chID, Type: bot.Group}, Text: text}
 					continue
 
 				} else {
 					ch.quorumPlayer[msg.From.ID] = true
 					if len(ch.quorumPlayer) == minQuorum {
+						text := fmt.Sprintf(fam100.T("Game dimulai, siapapun boleh jawab tanpa harus /join"))
+						m.out <- bot.Message{Chat: bot.Chat{ID: chID, Type: bot.Group}, Text: text}
 						ch.game.Start()
 						continue
 					}
@@ -109,6 +114,7 @@ func (m *fam100Bot) handleInbox() {
 			gameMsg := fam100.Message{
 				Kind:   fam100.TextMessage,
 				Player: fam100.Player{ID: fam100.PlayerID(msg.From.ID), Name: msg.From.FullName()},
+				Text:   msg.Text,
 			}
 			ch.game.In <- gameMsg
 		}
@@ -138,11 +144,15 @@ func main() {
 	if key == "" {
 		panic("TELEGRAM_KEY can not be empty")
 	}
+	if err := fam100.LoadQuestion("fam100.db"); err != nil {
+		panic(err)
+	}
 	telegram := bot.NewTelegram(key)
 	plugin := fam100Bot{}
 	if err := telegram.AddPlugin(&plugin); err != nil {
 		panic(err)
 	}
+	plugin.start()
 
 	telegram.Start()
 }

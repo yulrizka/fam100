@@ -82,7 +82,7 @@ func (g *Game) Start() {
 	go func() {
 		nRound := 3
 		for i := 0; i < nRound; i++ {
-			text := fmt.Sprintf(t("Ronde %d dari %d"), i+1, nRound)
+			text := fmt.Sprintf(T("Ronde %d dari %d"), i+1, nRound)
 			g.Out <- Message{GameID: g.ID, Kind: TextMessage, Text: text}
 			g.startRound()
 			g.roundPlayed++
@@ -106,7 +106,7 @@ func (g *Game) startRound() error {
 
 	qText := r.questionText(false)
 	qText += "\n"
-	qText += fmt.Sprintf(t("Anda memiliki waktu %s"), roundDuration)
+	qText += fmt.Sprintf(T("Anda memiliki waktu %s"), roundDuration)
 	g.Out <- Message{GameID: g.ID, Kind: TextMessage, Text: qText}
 
 	for {
@@ -115,20 +115,20 @@ func (g *Game) startRound() error {
 			answer := msg.Text
 			correct, alreadyAnswered, idx := r.answer(msg.Player, answer)
 			if !correct {
-				text := fmt.Sprintf(t("%q salah, sisa waktu %s"), answer, r.timeLeft())
+				text := fmt.Sprintf(T("%q salah, sisa waktu %s"), answer, r.timeLeft())
 				g.Out <- Message{GameID: g.ID, Kind: TextMessage, Text: text}
 				continue
 			}
 
 			if alreadyAnswered {
 				player := g.players[r.correct[idx]]
-				text := fmt.Sprintf(t("%q telah di jawab oleh %s"), answer, player.Name)
+				text := fmt.Sprintf(T("%q telah di jawab oleh %s"), answer, player.Name)
 				g.Out <- Message{GameID: g.ID, Kind: TextMessage, Text: text}
 				continue
 			}
 
 			text := r.questionText(false)
-			text += fmt.Sprintf("\n"+t("waktu tersisa %s lagi"), r.timeLeft())
+			text += fmt.Sprintf("\n"+T("waktu tersisa %s lagi"), r.timeLeft())
 			g.Out <- Message{GameID: g.ID, Kind: TextMessage, Text: text}
 
 			if r.finised() {
@@ -138,7 +138,7 @@ func (g *Game) startRound() error {
 				return nil
 			}
 		case <-timeLeftTick.C: // inform time left
-			text := fmt.Sprintf(t("waktu tersisa %s lagi"), r.timeLeft())
+			text := fmt.Sprintf(T("waktu tersisa %s lagi"), r.timeLeft())
 			select {
 			case g.Out <- Message{GameID: g.ID, Kind: TickMessage, Text: text}:
 			default:
@@ -147,7 +147,7 @@ func (g *Game) startRound() error {
 			g.State = Finished
 			timeLeftTick.Stop()
 			showUnAnswered := true
-			text := fmt.Sprintf("%s\n\n%s", t("Waktu habis.."), r.questionText(showUnAnswered))
+			text := fmt.Sprintf("%s\n\n%s", T("Waktu habis.."), r.questionText(showUnAnswered))
 			g.Out <- Message{GameID: g.ID, Kind: StateMessage, Text: string(RoundFinished)}
 			g.Out <- Message{GameID: g.ID, Kind: TextMessage, Text: text}
 			return nil
@@ -195,7 +195,7 @@ func (r *round) questionText(showUnAnswered bool) string {
 			if showUnAnswered {
 				fmt.Fprintf(w, "%d. %-30s [ %2d ]\n", i+1, a.String(), a.score)
 			} else {
-				fmt.Fprintf(w, "%d. ______________________________\n", i+1)
+				fmt.Fprintf(w, "%d. _________________________\n", i+1)
 			}
 		}
 	}
