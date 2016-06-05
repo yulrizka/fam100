@@ -12,7 +12,7 @@ var (
 	tickDuration  = 10 * time.Second
 )
 
-// Message to communitace with round
+// Message to communitace between player and the game
 type Message struct {
 	Kind   string
 	Player Player
@@ -35,119 +35,159 @@ type Player struct {
 	Name string
 }
 
-// RoundState represents state of the round
-type RoundState string
+// State represents state of the round
+type State string
 
 // RoundState Kind
 const (
-	Created  RoundState = "created"
-	Started  RoundState = "started"
-	Finished RoundState = "finished"
+	Created       State = "created"
+	Started       State = "started"
+	Finished      State = "finished"
+	RoundFinished State = "roundFinished"
 )
 
-// Round represent one question round
-type Round struct {
-	q       Question
-	correct []PlayerID // correct answer answered by a player, "" means not answered
-	state   RoundState
-	players map[PlayerID]Player
-	inbox   <-chan Message
-	outbox  chan Message
+// Game can consist of multiple round
+// each round user will be asked question and gain ponint
+type Game struct {
+	state       State
+	players     map[PlayerID]Player
+	seed        int64
+	roundPlayed int
+
+	inbox  <-chan Message
+	outbox chan Message
 }
 
-// NewRound create a new round
-func NewRound(q Question, inbox <-chan Message) (r *Round, outbox <-chan Message) {
-	r = &Round{
-		q:       q,
-		correct: make([]PlayerID, len(q.answers)),
-		state:   Created,
-		players: make(map[PlayerID]Player),
-		inbox:   inbox,
-		outbox:  make(chan Message),
+// NewGame create a new round
+// Seed and roundPlayed determine the random order of question
+// Seed can be any number, for example unix timestamp
+func NewGame(seed int64, roundPlayed int, inbox <-chan Message) (r *Game, outbox <-chan Message) {
+	r = &Game{
+		state:       Created,
+		players:     make(map[PlayerID]Player),
+		seed:        seed,
+		roundPlayed: roundPlayed,
+		inbox:       inbox,
+		outbox:      make(chan Message),
 	}
 	return r, r.outbox
 }
 
-// Start the round
-func (g *Round) Start() {
+// Start the game
+func (g *Game) Start() {
 	g.state = Started
 	go func() {
-		timeout := time.After(roundDuration)
-		timeoutAt := time.Now().Add(roundDuration).Round(time.Second)
-		tick := time.NewTicker(tickDuration)
-
-		// print question
-		g.outbox <- Message{Kind: StateMessage, Text: string(Started)}
-
-		qText := g.questionText(false)
-		qText += "\n"
-		qText += fmt.Sprintf(i("Anda memiliki waktu %s"), roundDuration)
-		g.outbox <- Message{Kind: TextMessage, Text: qText}
-
-		for {
-			select {
-			case msg := <-g.inbox:
-				answer := msg.Text
-				correct, answered, _, idx := g.answer(msg.Player, answer)
-				if !correct {
-					text := fmt.Sprintf(i("%q salah, sisa waktu %s"), answer, timeLeft(timeoutAt))
-					g.outbox <- Message{Kind: TextMessage, Text: text}
-					continue
-				}
-
-				if answered {
-					player := g.players[g.correct[idx]]
-					text := fmt.Sprintf(i("%q telah di jawab oleh %s"), answer, player.Name)
-					g.outbox <- Message{Kind: TextMessage, Text: text}
-					continue
-				} else {
-					text := g.questionText(false)
-					text += fmt.Sprintf("\n"+i("waktu tersisa %s lagi"), timeLeft(timeoutAt))
-					g.outbox <- Message{Kind: TextMessage, Text: text}
-				}
-
-				if g.finised() {
-					g.state = Finished
-					tick.Stop()
-					g.outbox <- Message{Kind: StateMessage, Text: string(Finished)}
-				}
-			case <-tick.C:
-				text := fmt.Sprintf(i("waktu tersisa %s lagi"), timeLeft(timeoutAt))
-				select {
-				case g.outbox <- Message{Kind: TickMessage, Text: text}:
-				default:
-				}
-			case <-timeout:
-				// waktu habis
-				g.state = Finished
-				tick.Stop()
-				showUnAnswered := true
-				text := fmt.Sprintf("%s\n\n%s", i("Waktu habis.."), g.questionText(showUnAnswered))
-				g.outbox <- Message{Kind: TextMessage, Text: text}
-				g.outbox <- Message{Kind: StateMessage, Text: string(Finished)}
-			}
+		nRound := 3
+		for i := 0; i < nRound; i++ {
+			text := fmt.Sprintf(t("Ronde %d dari %d"), i+1, nRound)
+			g.outbox <- Message{Kind: TextMessage, Text: text}
+			g.startRound()
+			g.roundPlayed++
 		}
+		g.outbox <- Message{Kind: StateMessage, Text: string(Finished)}
 	}()
 }
 
-// Stop the round
-func (g *Round) Stop() {
-	g.state = Finished
+func (g *Game) startRound() error {
+	g.roundPlayed++
+	r, err := newRound(g.seed, g.roundPlayed, g.players)
+	if err != nil {
+		return err
+	}
+	r.state = Started
+	timeout := time.After(roundDuration)
+	timeLeftTick := time.NewTicker(tickDuration)
+
+	// print question
+	g.outbox <- Message{Kind: StateMessage, Text: string(Started)}
+
+	qText := r.questionText(false)
+	qText += "\n"
+	qText += fmt.Sprintf(t("Anda memiliki waktu %s"), roundDuration)
+	g.outbox <- Message{Kind: TextMessage, Text: qText}
+
+	for {
+		select {
+		case msg := <-g.inbox: // new answer coming from player
+			answer := msg.Text
+			correct, alreadyAnswered, idx := r.answer(msg.Player, answer)
+			if !correct {
+				text := fmt.Sprintf(t("%q salah, sisa waktu %s"), answer, r.timeLeft())
+				g.outbox <- Message{Kind: TextMessage, Text: text}
+				continue
+			}
+
+			if alreadyAnswered {
+				player := g.players[r.correct[idx]]
+				text := fmt.Sprintf(t("%q telah di jawab oleh %s"), answer, player.Name)
+				g.outbox <- Message{Kind: TextMessage, Text: text}
+				continue
+			}
+
+			text := r.questionText(false)
+			text += fmt.Sprintf("\n"+t("waktu tersisa %s lagi"), r.timeLeft())
+			g.outbox <- Message{Kind: TextMessage, Text: text}
+
+			if r.finised() {
+				r.state = Finished
+				timeLeftTick.Stop()
+				g.outbox <- Message{Kind: StateMessage, Text: string(RoundFinished)}
+				return nil
+			}
+		case <-timeLeftTick.C: // inform time left
+			text := fmt.Sprintf(t("waktu tersisa %s lagi"), r.timeLeft())
+			select {
+			case g.outbox <- Message{Kind: TickMessage, Text: text}:
+			default:
+			}
+		case <-timeout:
+			g.state = Finished
+			timeLeftTick.Stop()
+			showUnAnswered := true
+			text := fmt.Sprintf("%s\n\n%s", t("Waktu habis.."), r.questionText(showUnAnswered))
+			g.outbox <- Message{Kind: StateMessage, Text: string(RoundFinished)}
+			g.outbox <- Message{Kind: TextMessage, Text: text}
+			return nil
+		}
+	}
 }
 
-func (g *Round) player(id PlayerID) (Player, bool) {
-	p, ok := g.players[id]
-	return p, ok
+// round represents one quesiton round
+type round struct {
+	q       Question
+	state   State
+	correct []PlayerID // correct answer answered by a player, "" means not answered
+	players map[PlayerID]Player
+	endAt   time.Time
 }
 
-func (g *Round) questionText(showUnAnswered bool) string {
+func newRound(seed int64, roundPlayed int, players map[PlayerID]Player) (*round, error) {
+	q, err := NextQuestion(seed, roundPlayed)
+	if err != nil {
+		return nil, err
+	}
+
+	return &round{
+		q:       q,
+		correct: make([]PlayerID, len(q.answers)),
+		state:   Created,
+		players: players,
+		endAt:   time.Now().Add(roundDuration).Round(time.Second),
+	}, nil
+}
+
+func (r *round) timeLeft() time.Duration {
+	return r.endAt.Sub(time.Now().Round(time.Second))
+}
+
+func (r *round) questionText(showUnAnswered bool) string {
 	var b bytes.Buffer
 	w := bufio.NewWriter(&b)
 
-	fmt.Fprintf(w, "[%d] %s?\n\n", g.q.id, g.q.text)
-	for i, a := range g.q.answers {
-		if pID := g.correct[i]; pID != "" {
-			fmt.Fprintf(w, "%d. %-30s [ %2d ] - %s\n", i+1, a.String(), a.score, g.players[pID].Name)
+	fmt.Fprintf(w, "[id: %d] %s?\n\n", r.q.id, r.q.text)
+	for i, a := range r.q.answers {
+		if pID := r.correct[i]; pID != "" {
+			fmt.Fprintf(w, "%d. %-30s [ %2d ] - %s\n", i+1, a.String(), a.score, r.players[pID].Name)
 		} else {
 			if showUnAnswered {
 				fmt.Fprintf(w, "%d. %-30s [ %2d ]\n", i+1, a.String(), a.score)
@@ -161,45 +201,41 @@ func (g *Round) questionText(showUnAnswered bool) string {
 	return b.String()
 }
 
-func (g *Round) finised() bool {
+func (r *round) finised() bool {
 	answered := 0
-	for _, pID := range g.correct {
+	for _, pID := range r.correct {
 		if pID != "" {
 			answered++
 		}
 	}
 
-	return answered == len(g.q.answers)
+	return answered == len(r.q.answers)
 }
 
-func (g *Round) scores() map[PlayerID]int {
+func (r *round) scores() map[PlayerID]int {
 	scores := make(map[PlayerID]int)
-	for i, pID := range g.correct {
+	for i, pID := range r.correct {
 		if pID != "" {
-			scores[pID] = g.q.answers[i].score
+			scores[pID] = r.q.answers[i].score
 		}
 	}
 	return scores
 }
 
-func (g *Round) answer(p Player, text string) (correct, answered bool, score, index int) {
-	if g.state != Started {
-		return false, false, 0, -1
+func (r *round) answer(p Player, text string) (correct, answered bool, index int) {
+	if r.state != Started {
+		return false, false, -1
 	}
 
-	if correct, score, i := g.q.checkAnswer(text); correct {
-		if g.correct[i] != "" {
+	if correct, _, i := r.q.checkAnswer(text); correct {
+		if r.correct[i] != "" {
 			// already answered
-			return correct, true, score, i
+			return correct, true, i
 		}
-		g.correct[i] = p.ID
-		g.players[p.ID] = p
+		r.correct[i] = p.ID
+		r.players[p.ID] = p
 
-		return correct, false, score, i
+		return correct, false, i
 	}
-	return false, false, 0, -1
-}
-
-func timeLeft(endAt time.Time) time.Duration {
-	return endAt.Sub(time.Now().Round(time.Second))
+	return false, false, -1
 }

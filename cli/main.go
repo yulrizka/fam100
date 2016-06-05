@@ -3,7 +3,6 @@ package main
 import (
 	"bufio"
 	"fmt"
-	"log"
 	"os"
 	"strings"
 	"time"
@@ -12,13 +11,15 @@ import (
 )
 
 var (
-	input      = make(chan string)
-	name       string
-	gamePlayed int
+	input       = make(chan string)
+	name        string
+	roundPlayed int
+	seed        int64
 )
 
 func main() {
 	printHeader()
+	seed = time.Now().UnixNano()
 
 	scanner := bufio.NewScanner(os.Stdin)
 	for name == "" {
@@ -27,7 +28,7 @@ func main() {
 		name = strings.TrimSpace(scanner.Text())
 	}
 
-	fmt.Printf("\nHalo %s ketik /keluar untuk berhenti!\n\n", name)
+	fmt.Printf("\nHalo %s ketik '/keluar' kapanpun jika ingin berhenti!\n\n", name)
 	go startGame()
 	time.Sleep(300 * time.Millisecond)
 
@@ -42,12 +43,6 @@ func main() {
 		case input <- text:
 		default:
 		}
-	}
-
-	for {
-		var text string
-		fmt.Scanln(&text)
-
 	}
 }
 
@@ -76,14 +71,9 @@ func startGame() {
 		}
 		fmt.Println()
 
-		question, err := fam100.NextQuestion(time.Now().UnixNano(), gamePlayed)
-		if err != nil {
-			log.Fatal(err)
-		}
 		in := make(chan fam100.Message)
-		round, out := fam100.NewRound(question, in)
-
-		round.Start()
+		game, out := fam100.NewGame(seed, roundPlayed, in)
+		game.Start()
 	GAME:
 		for {
 			select {
@@ -93,12 +83,15 @@ func startGame() {
 					fmt.Println(m.Text)
 					fmt.Println()
 				case fam100.StateMessage:
-					if m.Text == string(fam100.Finished) {
+					switch m.Text {
+					case string(fam100.Finished):
 						break GAME
+					case string(fam100.RoundFinished):
+						roundPlayed++
 					}
 				default:
+					// for debuging
 					//fmt.Printf("m = %+v\n", m)
-
 				}
 			case i := <-input:
 				fmt.Println()
@@ -109,6 +102,5 @@ func startGame() {
 				in <- msg
 			}
 		}
-
 	}
 }
