@@ -72,7 +72,8 @@ func startGame() {
 		fmt.Println()
 
 		in := make(chan fam100.Message)
-		game, out := fam100.NewGame(seed, roundPlayed, in)
+		out := make(chan fam100.Message)
+		game := fam100.NewGame("cli", seed, roundPlayed, in, out)
 		game.Start()
 	GAME:
 		for {

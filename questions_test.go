@@ -10,7 +10,7 @@ func TestMain(m *testing.M) {
 		panic(err)
 	}
 	retCode := m.Run()
-	db.Close()
+	DB.Close()
 	os.Exit(retCode)
 }
 

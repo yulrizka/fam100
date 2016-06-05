@@ -11,7 +11,8 @@ import (
 )
 
 var (
-	db           *sql.DB
+	// DB question database
+	DB           *sql.DB
 	questionSize int
 )
 
@@ -47,12 +48,12 @@ func (a answer) String() string {
 // LoadQuestion db
 func LoadQuestion(dbPath string) error {
 	var err error
-	db, err = sql.Open("sqlite3", dbPath)
+	DB, err = sql.Open("sqlite3", dbPath)
 	if err != nil {
 		return err
 	}
 
-	rows, err := db.Query(`SELECT count(id_soal) from soal`)
+	rows, err := DB.Query(`SELECT count(id_soal) from soal`)
 	if err != nil {
 		return err
 	}
@@ -68,7 +69,7 @@ func LoadQuestion(dbPath string) error {
 
 // GetQuestion by id
 func GetQuestion(id int) (q Question, err error) {
-	rows, err := db.Query(`select soal.id_soal, soal, id_jawaban, jawaban, jawaban_alt, skor 
+	rows, err := DB.Query(`select soal.id_soal, soal, id_jawaban, jawaban, jawaban_alt, skor
 		FROM soal inner join jawaban on soal.id_soal = jawaban.id_soal
 		WHERE soal.id_soal = ? ORDER BY skor DESC
 	`, id)

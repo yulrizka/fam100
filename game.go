@@ -14,6 +14,7 @@ var (
 
 // Message to communitace between player and the game
 type Message struct {
+	GameID string
 	Kind   string
 	Player Player
 	Text   string
@@ -49,42 +50,44 @@ const (
 // Game can consist of multiple round
 // each round user will be asked question and gain ponint
 type Game struct {
-	state       State
+	ID          string
+	State       State
 	players     map[PlayerID]Player
 	seed        int64
 	roundPlayed int
 
-	inbox  <-chan Message
-	outbox chan Message
+	In  chan Message
+	Out chan Message
 }
 
 // NewGame create a new round
 // Seed and roundPlayed determine the random order of question
 // Seed can be any number, for example unix timestamp
-func NewGame(seed int64, roundPlayed int, inbox <-chan Message) (r *Game, outbox <-chan Message) {
+func NewGame(id string, seed int64, roundPlayed int, in, out chan Message) (r *Game) {
 	r = &Game{
-		state:       Created,
+		ID:          id,
+		State:       Created,
 		players:     make(map[PlayerID]Player),
 		seed:        seed,
 		roundPlayed: roundPlayed,
-		inbox:       inbox,
-		outbox:      make(chan Message),
+		In:          in,
+		Out:         out,
 	}
-	return r, r.outbox
+	return r
 }
 
 // Start the game
 func (g *Game) Start() {
-	g.state = Started
+	g.State = Started
 	go func() {
 		nRound := 3
 		for i := 0; i < nRound; i++ {
 			text := fmt.Sprintf(t("Ronde %d dari %d"), i+1, nRound)
-			g.outbox <- Message{Kind: TextMessage, Text: text}
+			g.Out <- Message{GameID: g.ID, Kind: TextMessage, Text: text}
 			g.startRound()
 			g.roundPlayed++
 		}
-		g.outbox <- Message{Kind: StateMessage, Text: string(Finished)}
+		g.Out <- Message{GameID: g.ID, Kind: StateMessage, Text: string(Finished)}
 	}()
 }
 
@@ -99,54 +102,54 @@ func (g *Game) startRound() error {
 	timeLeftTick := time.NewTicker(tickDuration)
 
 	// print question
-	g.outbox <- Message{Kind: StateMessage, Text: string(Started)}
+	g.Out <- Message{GameID: g.ID, Kind: StateMessage, Text: string(Started)}
 
 	qText := r.questionText(false)
 	qText += "\n"
 	qText += fmt.Sprintf(t("Anda memiliki waktu %s"), roundDuration)
-	g.outbox <- Message{Kind: TextMessage, Text: qText}
+	g.Out <- Message{GameID: g.ID, Kind: TextMessage, Text: qText}
 
 	for {
 		select {
-		case msg := <-g.inbox: // new answer coming from player
+		case msg := <-g.In: // new answer coming from player
 			answer := msg.Text
 			correct, alreadyAnswered, idx := r.answer(msg.Player, answer)
 			if !correct {
 				text := fmt.Sprintf(t("%q salah, sisa waktu %s"), answer, r.timeLeft())
-				g.outbox <- Message{Kind: TextMessage, Text: text}
+				g.Out <- Message{GameID: g.ID, Kind: TextMessage, Text: text}
 				continue
 			}
 
 			if alreadyAnswered {
 				player := g.players[r.correct[idx]]
 				text := fmt.Sprintf(t("%q telah di jawab oleh %s"), answer, player.Name)
-				g.outbox <- Message{Kind: TextMessage, Text: text}
+				g.Out <- Message{GameID: g.ID, Kind: TextMessage, Text: text}
 				continue
 			}
 
 			text := r.questionText(false)
 			text += fmt.Sprintf("\n"+t("waktu tersisa %s lagi"), r.timeLeft())
-			g.outbox <- Message{Kind: TextMessage, Text: text}
+			g.Out <- Message{GameID: g.ID, Kind: TextMessage, Text: text}
 
 			if r.finised() {
 				r.state = Finished
 				timeLeftTick.Stop()
-				g.outbox <- Message{Kind: StateMessage, Text: string(RoundFinished)}
+				g.Out <- Message{GameID: g.ID, Kind: StateMessage, Text: string(RoundFinished)}
 				return nil
 			}
 		case <-timeLeftTick.C: // inform time left
 			text := fmt.Sprintf(t("waktu tersisa %s lagi"), r.timeLeft())
 			select {
-			case g.outbox <- Message{Kind: TickMessage, Text: text}:
+			case g.Out <- Message{GameID: g.ID, Kind: TickMessage, Text: text}:
 			default:
 			}
 		case <-timeout:
-			g.state = Finished
+			g.State = Finished
 			timeLeftTick.Stop()
 			showUnAnswered := true
 			text := fmt.Sprintf("%s\n\n%s", t("Waktu habis.."), r.questionText(showUnAnswered))
-			g.outbox <- Message{Kind: StateMessage, Text: string(RoundFinished)}
-			g.outbox <- Message{Kind: TextMessage, Text: text}
+			g.Out <- Message{GameID: g.ID, Kind: StateMessage, Text: string(RoundFinished)}
+			g.Out <- Message{GameID: g.ID, Kind: TextMessage, Text: text}
 			return nil
 		}
 	}
