@@ -1,31 +1,57 @@
 package fam100
 
 import (
-	"bufio"
-	"bytes"
 	"fmt"
+	"log"
 	"time"
 )
 
 var (
-	roundDuration = 60 * time.Second
-	tickDuration  = 10 * time.Second
+	roundDuration        = 60 * time.Second
+	tickDuration         = 10 * time.Second
+	TickAfterWrongAnswer = false
 )
 
 // Message to communitace between player and the game
-type Message struct {
+type Message interface{}
+
+// TextMessage represents a chat message
+type TextMessage struct {
 	GameID string
-	Kind   string
 	Player Player
 	Text   string
 }
 
-// Kind of Message
-const (
-	TextMessage  = "textMsg"
-	StateMessage = "state"
-	TickMessage  = "tick"
-)
+// StateMessage represents state change in the game
+type StateMessage struct {
+	GameID string
+	State  State
+}
+
+// TickMessage represents time left notification
+type TickMessage struct {
+	GameID   string
+	TimeLeft time.Duration
+}
+
+type roundAnswers struct {
+	Text     string
+	Score    int
+	Answered bool
+	PlayerID PlayerID
+}
+
+// RoundTextMessage represents question and answer for this round
+type RoundTextMessage struct {
+	Beginning      bool // Beginning of the round
+	End            bool // End of the round
+	Timeout        bool // Timeout reached
+	GameID         string
+	QuestionText   string
+	Answers        []roundAnswers
+	ShowUnanswered bool // reveal un-answered question
+	TimeLeft       time.Duration
+}
 
 // PlayerID is the player ID type
 type PlayerID string
@@ -83,11 +109,11 @@ func (g *Game) Start() {
 		nRound := 3
 		for i := 0; i < nRound; i++ {
 			text := fmt.Sprintf(T("Ronde %d dari %d"), i+1, nRound)
-			g.Out <- Message{GameID: g.ID, Kind: TextMessage, Text: text}
+			g.Out <- TextMessage{GameID: g.ID, Text: text}
 			g.startRound()
 			g.roundPlayed++
 		}
-		g.Out <- Message{GameID: g.ID, Kind: StateMessage, Text: string(Finished)}
+		g.Out <- StateMessage{GameID: g.ID, State: Finished}
 	}()
 }
 
@@ -102,54 +128,49 @@ func (g *Game) startRound() error {
 	timeLeftTick := time.NewTicker(tickDuration)
 
 	// print question
-	g.Out <- Message{GameID: g.ID, Kind: StateMessage, Text: string(Started)}
-
-	qText := r.questionText(false)
-	qText += "\n"
-	qText += fmt.Sprintf(T("Anda memiliki waktu %s"), roundDuration)
-	g.Out <- Message{GameID: g.ID, Kind: TextMessage, Text: qText}
+	g.Out <- StateMessage{GameID: g.ID, State: Started}
+	qt := r.questionText(g.ID, false)
+	qt.Beginning = true
+	g.Out <- qt
 
 	for {
 		select {
-		case msg := <-g.In: // new answer coming from player
+		case rawMsg := <-g.In: // new answer coming from player
+			msg, ok := rawMsg.(TextMessage)
+			if !ok {
+				log.Printf("ERROR Unexpected message type input from client")
+				continue
+			}
 			answer := msg.Text
-			correct, alreadyAnswered, idx := r.answer(msg.Player, answer)
+			correct, _, _ := r.answer(msg.Player, answer)
 			if !correct {
-				text := fmt.Sprintf(T("%q salah, sisa waktu %s"), answer, r.timeLeft())
-				g.Out <- Message{GameID: g.ID, Kind: TextMessage, Text: text}
+				if TickAfterWrongAnswer {
+					g.Out <- TickMessage{GameID: g.ID, TimeLeft: r.timeLeft()}
+				}
 				continue
 			}
 
-			if alreadyAnswered {
-				player := g.players[r.correct[idx]]
-				text := fmt.Sprintf(T("%q telah di jawab oleh %s"), answer, player.Name)
-				g.Out <- Message{GameID: g.ID, Kind: TextMessage, Text: text}
-				continue
-			}
-
-			text := r.questionText(false)
-			text += fmt.Sprintf("\n"+T("waktu tersisa %s lagi"), r.timeLeft())
-			g.Out <- Message{GameID: g.ID, Kind: TextMessage, Text: text}
-
+			// show correct answer
+			g.Out <- r.questionText(g.ID, false)
 			if r.finised() {
 				r.state = Finished
 				timeLeftTick.Stop()
-				g.Out <- Message{GameID: g.ID, Kind: StateMessage, Text: string(RoundFinished)}
+				g.Out <- StateMessage{GameID: g.ID, State: RoundFinished}
 				return nil
 			}
 		case <-timeLeftTick.C: // inform time left
-			text := fmt.Sprintf(T("waktu tersisa %s lagi"), r.timeLeft())
 			select {
-			case g.Out <- Message{GameID: g.ID, Kind: TickMessage, Text: text}:
+			case g.Out <- TickMessage{GameID: g.ID, TimeLeft: r.timeLeft()}:
 			default:
 			}
 		case <-timeout:
 			g.State = Finished
 			timeLeftTick.Stop()
+			g.Out <- StateMessage{GameID: g.ID, State: RoundFinished}
 			showUnAnswered := true
-			text := fmt.Sprintf("%s\n\n%s", T("Waktu habis.."), r.questionText(showUnAnswered))
-			g.Out <- Message{GameID: g.ID, Kind: StateMessage, Text: string(RoundFinished)}
-			g.Out <- Message{GameID: g.ID, Kind: TextMessage, Text: text}
+			msg := r.questionText(g.ID, showUnAnswered)
+			msg.End, msg.Timeout = true, true
+			g.Out <- msg
 			return nil
 		}
 	}
@@ -183,25 +204,26 @@ func (r *round) timeLeft() time.Duration {
 	return r.endAt.Sub(time.Now().Round(time.Second))
 }
 
-func (r *round) questionText(showUnAnswered bool) string {
-	var b bytes.Buffer
-	w := bufio.NewWriter(&b)
+func (r *round) questionText(gameID string, showUnAnswered bool) RoundTextMessage {
+	/*
+		var b bytes.Buffer
+		w := bufio.NewWriter(&b)
 
-	fmt.Fprintf(w, "[id: %d] %s?\n\n", r.q.id, r.q.text)
-	for i, a := range r.q.answers {
-		if pID := r.correct[i]; pID != "" {
-			fmt.Fprintf(w, "%d. %-30s [ %2d ] - %s\n", i+1, a.String(), a.score, r.players[pID].Name)
-		} else {
-			if showUnAnswered {
-				fmt.Fprintf(w, "%d. %-30s [ %2d ]\n", i+1, a.String(), a.score)
+		fmt.Fprintf(w, "[id: %d] %s?\n\n", r.q.id, r.q.text)
+		for i, a := range r.q.answers {
+			if pID := r.correct[i]; pID != "" {
+				fmt.Fprintf(w, "%d. %-30s [ %2d ] - %s\n", i+1, a.String(), a.score, r.players[pID].Name)
 			} else {
-				fmt.Fprintf(w, "%d. _________________________\n", i+1)
+				if showUnAnswered {
+					fmt.Fprintf(w, "%d. %-30s [ %2d ]\n", i+1, a.String(), a.score)
+				} else {
+					fmt.Fprintf(w, "%d. _________________________\n", i+1)
+				}
 			}
 		}
-	}
-	w.Flush()
-
-	return b.String()
+		w.Flush()
+	*/
+	return RoundTextMessage{}
 }
 
 func (r *round) finised() bool {

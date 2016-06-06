@@ -14,6 +14,9 @@ func TestMain(m *testing.M) {
 	if err := fam100.LoadQuestion("fam100.db"); err != nil {
 		panic(err)
 	}
+	if err := initRedis(); err != nil {
+		panic(err)
+	}
 	retCode := m.Run()
 	fam100.DB.Close()
 	os.Exit(retCode)
@@ -21,7 +24,7 @@ func TestMain(m *testing.M) {
 
 func TestQuorumShouldStartGame(t *testing.T) {
 	// create a new game
-	out := make(chan bot.Message)
+	out := make(chan bot.Message, 100)
 	b := fam100Bot{}
 	in, err := b.Init(out)
 	if err != nil {
@@ -39,7 +42,6 @@ func TestQuorumShouldStartGame(t *testing.T) {
 	for i := 0; i < 3; i++ {
 		in <- &msg
 	}
-
 	readOutMessage(&b)
 	g, ok := b.channels[chID]
 	if !ok {
@@ -98,7 +100,7 @@ func readOutMessage(b *fam100Bot) (fam100.Message, error) {
 		case m := <-b.gameOut:
 			return m, nil
 		case <-time.After(1 * time.Second):
-			return fam100.Message{}, fmt.Errorf("timeout waiting to message")
+			return nil, fmt.Errorf("timeout waiting to message")
 		}
 	}
 }

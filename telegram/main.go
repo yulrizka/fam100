@@ -17,6 +17,29 @@ var (
 	botName              = "fam100bot"
 )
 
+func init() {
+	log.SetFlags(log.Ldate | log.Ltime | log.Lmicroseconds | log.Lshortfile)
+}
+
+func main() {
+
+	key := os.Getenv("TELEGRAM_KEY")
+	if key == "" {
+		panic("TELEGRAM_KEY can not be empty")
+	}
+	if err := fam100.LoadQuestion("fam100.db"); err != nil {
+		panic(err)
+	}
+	telegram := bot.NewTelegram(key)
+	plugin := fam100Bot{}
+	if err := telegram.AddPlugin(&plugin); err != nil {
+		panic(err)
+	}
+	plugin.start()
+
+	telegram.Start()
+}
+
 // channel represents channels chat rooms
 type channel struct {
 	game         *fam100.Game
@@ -87,7 +110,6 @@ func (m *fam100Bot) handleInbox() {
 					// create a new game
 					quorumPlayer := map[string]bool{msg.From.ID: true}
 					m.channels[chID] = &channel{game: fam100.NewGame(chID, seed, next, m.gameIn, m.gameOut), quorumPlayer: quorumPlayer}
-					m.gameOut <- fam100.Message{Kind: fam100.StateMessage, Text: string(fam100.Created)}
 					text := fmt.Sprintf(fam100.T("%s ok, butuh %d orang lagi"), msg.From.FullName(), minQuorum-len(quorumPlayer))
 					m.out <- bot.Message{Chat: bot.Chat{ID: chID, Type: bot.Group}, Text: text}
 					continue
@@ -111,8 +133,7 @@ func (m *fam100Bot) handleInbox() {
 				continue
 			}
 
-			gameMsg := fam100.Message{
-				Kind:   fam100.TextMessage,
+			gameMsg := fam100.TextMessage{
 				Player: fam100.Player{ID: fam100.PlayerID(msg.From.ID), Name: msg.From.FullName()},
 				Text:   msg.Text,
 			}
@@ -126,8 +147,8 @@ func (m *fam100Bot) handleOutbox() {
 		select {
 		case <-m.quit:
 			return
-		case gameMsg := <-m.gameOut:
-			if gameMsg.Kind == fam100.TextMessage {
+		case rawMsg := <-m.gameOut:
+			if gameMsg, ok := rawMsg.(fam100.TextMessage); ok {
 				m.out <- bot.Message{
 					Chat: bot.Chat{ID: gameMsg.GameID, Type: bot.Group},
 					Text: gameMsg.Text,
@@ -135,24 +156,4 @@ func (m *fam100Bot) handleOutbox() {
 			}
 		}
 	}
-}
-
-func main() {
-	log.SetFlags(log.Ldate | log.Ltime | log.Lmicroseconds | log.Lshortfile)
-
-	key := os.Getenv("TELEGRAM_KEY")
-	if key == "" {
-		panic("TELEGRAM_KEY can not be empty")
-	}
-	if err := fam100.LoadQuestion("fam100.db"); err != nil {
-		panic(err)
-	}
-	telegram := bot.NewTelegram(key)
-	plugin := fam100Bot{}
-	if err := telegram.AddPlugin(&plugin); err != nil {
-		panic(err)
-	}
-	plugin.start()
-
-	telegram.Start()
 }

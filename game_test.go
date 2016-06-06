@@ -1,7 +1,6 @@
 package fam100
 
 import (
-	"fmt"
 	"math/rand"
 	"testing"
 )
@@ -25,11 +24,13 @@ func TestQuestionString(t *testing.T) {
 		r.answer(player, answerText)
 	}
 	// no checking, just to debug output
-	showUnAnswered := false
-	fmt.Print(r.questionText(showUnAnswered))
-	fmt.Println()
-	for pID, score := range r.scores() {
-		p := r.players[pID]
-		fmt.Printf("p.name = %s, score = %d\n", p.Name, score)
-	}
+	/*
+		showUnAnswered := false
+		fmt.Print(r.questionText(showUnAnswered))
+		fmt.Println()
+		for pID, score := range r.scores() {
+			p := r.players[pID]
+			fmt.Printf("p.name = %s, score = %d\n", p.Name, score)
+		}
+	*/
 }
