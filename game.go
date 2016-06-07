@@ -79,28 +79,28 @@ const (
 // Game can consist of multiple round
 // each round user will be asked question and gain ponint
 type Game struct {
-	ID          string
-	State       State
-	players     map[PlayerID]Player
-	seed        int64
-	roundPlayed int
+	ID               string
+	State            State
+	TotalRoundPlayed int
+	players          map[PlayerID]Player
+	seed             int64
 
 	In  chan Message
 	Out chan Message
 }
 
 // NewGame create a new round
-// Seed and roundPlayed determine the random order of question
+// Seed and totalRoundPlayed determine the random order of question
 // Seed can be any number, for example unix timestamp
-func NewGame(id string, seed int64, roundPlayed int, in, out chan Message) (r *Game) {
+func NewGame(id string, seed int64, totalRoundPlayed int, in, out chan Message) (r *Game) {
 	r = &Game{
-		ID:          id,
-		State:       Created,
-		players:     make(map[PlayerID]Player),
-		seed:        seed,
-		roundPlayed: roundPlayed,
-		In:          in,
-		Out:         out,
+		ID:               id,
+		State:            Created,
+		players:          make(map[PlayerID]Player),
+		seed:             seed,
+		TotalRoundPlayed: totalRoundPlayed,
+		In:               in,
+		Out:              out,
 	}
 	return r
 }
@@ -111,7 +111,6 @@ func (g *Game) Start() {
 	go func() {
 		g.Out <- StateMessage{GameID: g.ID, State: Started}
 		for i := 0; i < RoundPerGame; i++ {
-			g.roundPlayed++
 			g.startRound(i + 1)
 		}
 		g.Out <- StateMessage{GameID: g.ID, State: Finished}
@@ -119,8 +118,8 @@ func (g *Game) Start() {
 }
 
 func (g *Game) startRound(currentRound int) error {
-	g.roundPlayed++
-	r, err := newRound(g.seed, g.roundPlayed, g.players)
+	g.TotalRoundPlayed++
+	r, err := newRound(g.seed, g.TotalRoundPlayed, g.players)
 	if err != nil {
 		return err
 	}

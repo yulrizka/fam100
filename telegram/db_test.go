@@ -5,7 +5,7 @@ import "testing"
 func TestGet(t *testing.T) {
 	chanID := "foo"
 	roundPlayed := 100
-	if err := finishGame(chanID, roundPlayed); err != nil {
+	if err := incGame(chanID, roundPlayed); err != nil {
 		t.Error(err)
 	}
 

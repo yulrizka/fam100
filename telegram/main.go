@@ -50,6 +50,8 @@ func main() {
 // channel represents channels chat rooms
 type channel struct {
 	game         *fam100.Game
+	totalPlayed  int
+	seed         int64
 	quorumPlayer map[string]bool
 }
 
@@ -115,12 +117,17 @@ func (m *fam100Bot) handleInbox() {
 				if !ok {
 					seed, next, err := nextGame(chID)
 					if err != nil {
-						log.Printf("ERROR creating new game, channel:%s, %s", chID, err)
+						log.Printf("ERROR getting nextGame seed, channel:%s, %s", chID, err)
 						continue
 					}
 					// create a new game
 					quorumPlayer := map[string]bool{msg.From.ID: true}
-					m.channels[chID] = &channel{game: fam100.NewGame(chID, seed, next, m.gameIn, m.gameOut), quorumPlayer: quorumPlayer}
+					m.channels[chID] = &channel{
+						game:         fam100.NewGame(chID, seed, next, m.gameIn, m.gameOut),
+						quorumPlayer: quorumPlayer,
+						seed:         seed,
+						totalPlayed:  next,
+					}
 					text := fmt.Sprintf(fam100.T("*%s* OK, butuh %d orang lagi"), msg.From.FullName(), minQuorum-len(quorumPlayer))
 					m.out <- bot.Message{Chat: bot.Chat{ID: chID, Type: bot.Group}, Text: text, Format: bot.Markdown}
 					continue
@@ -181,6 +188,7 @@ func (m *fam100Bot) handleOutbox() {
 					text := fmt.Sprintf(fam100.T("Game dimulai, siapapun boleh menjawab tanpa `/join`"))
 					m.out <- bot.Message{Chat: bot.Chat{ID: msg.GameID, Type: bot.Group}, Text: text, Format: bot.Markdown}
 				case fam100.RoundStarted:
+					// TODO: incGame here
 					text := fmt.Sprintf(fam100.T("Ronde %d dari %d"), msg.Round, fam100.RoundPerGame)
 					text += "\n\n" + formatRoundText(msg.RoundText)
 					m.out <- bot.Message{Chat: bot.Chat{ID: msg.GameID, Type: bot.Group}, Text: text, Format: bot.HTML}

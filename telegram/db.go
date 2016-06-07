@@ -35,7 +35,7 @@ func nextGame(chanID string) (seed int64, nextRound int, err error) {
 	return seed, nextRound + 1, nil
 }
 
-func finishGame(chanID string, roundPlayed int) error {
+func incGame(chanID string, roundPlayed int) error {
 	key := fmt.Sprintf("%s_channel_%s", redisPrefix, chanID)
 	_, err := conn.Do("SET", key, roundPlayed)
 
