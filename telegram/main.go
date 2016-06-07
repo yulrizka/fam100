@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"time"
 
 	"github.com/yulrizka/bot"
 	"github.com/yulrizka/fam100"
@@ -15,6 +16,7 @@ var (
 	gameInBufferSize     = 10000
 	gameOutBufferSize    = 10000
 	botName              = "fam100bot"
+	startedAt            time.Time
 )
 
 func init() {
@@ -22,7 +24,6 @@ func init() {
 }
 
 func main() {
-
 	key := os.Getenv("TELEGRAM_KEY")
 	if key == "" {
 		panic("TELEGRAM_KEY can not be empty")
@@ -30,6 +31,10 @@ func main() {
 	if err := fam100.LoadQuestion("fam100.db"); err != nil {
 		panic(err)
 	}
+	if err := initRedis(); err != nil {
+		panic(err)
+	}
+	startedAt = time.Now()
 	telegram := bot.NewTelegram(key)
 	plugin := fam100Bot{}
 	if err := telegram.AddPlugin(&plugin); err != nil {
@@ -91,6 +96,11 @@ func (m *fam100Bot) handleInbox() {
 			if msg == nil {
 				return // closed channel
 			}
+			if msg.Date.Before(startedAt) {
+				// ignore message that is received before the process started
+				continue
+			}
+
 			msgType := msg.Chat.Type
 			if msgType != bot.Group && msgType != bot.SuperGroup {
 				// For now only accept group message
@@ -99,8 +109,7 @@ func (m *fam100Bot) handleInbox() {
 			chID := msg.Chat.ID
 			ch, ok := m.channels[chID]
 
-			// TODO: check for command to create an new game
-			if msg.Text == "/join@"+botName {
+			if msg.Text == "/join" || msg.Text == "/join@"+botName {
 				if !ok {
 					seed, next, err := nextGame(chID)
 					if err != nil {
@@ -110,8 +119,8 @@ func (m *fam100Bot) handleInbox() {
 					// create a new game
 					quorumPlayer := map[string]bool{msg.From.ID: true}
 					m.channels[chID] = &channel{game: fam100.NewGame(chID, seed, next, m.gameIn, m.gameOut), quorumPlayer: quorumPlayer}
-					text := fmt.Sprintf(fam100.T("%s ok, butuh %d orang lagi"), msg.From.FullName(), minQuorum-len(quorumPlayer))
-					m.out <- bot.Message{Chat: bot.Chat{ID: chID, Type: bot.Group}, Text: text}
+					text := fmt.Sprintf(fam100.T("*%s* OK, butuh %d orang lagi"), msg.From.FullName(), minQuorum-len(quorumPlayer))
+					m.out <- bot.Message{Chat: bot.Chat{ID: chID, Type: bot.Group}, Text: text, Format: bot.Markdown}
 					continue
 
 				} else {
@@ -129,6 +138,16 @@ func (m *fam100Bot) handleInbox() {
 				// ignore message since no game started for that channel
 				continue
 			}
+
+			if msg.Text == "/leave" || msg.Text == "/leave@"+botName {
+				if _, ok := ch.quorumPlayer[msg.From.ID]; ok {
+					delete(ch.quorumPlayer, msg.From.ID)
+					text := fmt.Sprintf(fam100.T("%s ok :("))
+					m.out <- bot.Message{Chat: bot.Chat{ID: chID, Type: bot.Group}, Text: text}
+				}
+				continue
+			}
+
 			if len(ch.quorumPlayer) < minQuorum {
 				continue
 			}

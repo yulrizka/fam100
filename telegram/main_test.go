@@ -24,7 +24,7 @@ func TestMain(m *testing.M) {
 
 func TestQuorumShouldStartGame(t *testing.T) {
 	// create a new game
-	out := make(chan bot.Message, 100)
+	out := make(chan bot.Message)
 	b := fam100Bot{}
 	in, err := b.Init(out)
 	if err != nil {
@@ -76,12 +76,13 @@ func TestQuorumShouldStartGame(t *testing.T) {
 
 	// message with quorum should start the game
 	in <- &bot.Message{
-		From: bot.User{ID: "2", FirstName: "Foo"},
+		From: bot.User{ID: "4", FirstName: "Foo"},
 		Chat: bot.Chat{ID: chID, Type: bot.Group},
 		Text: "/join@" + botName,
 	}
+	readOutMessage(&b)
 	in <- &bot.Message{
-		From: bot.User{ID: "3", FirstName: "Foo"},
+		From: bot.User{ID: "5", FirstName: "Foo"},
 		Chat: bot.Chat{ID: chID, Type: bot.Group},
 		Text: "/join@" + botName,
 	}
@@ -97,7 +98,7 @@ func TestQuorumShouldStartGame(t *testing.T) {
 func readOutMessage(b *fam100Bot) (fam100.Message, error) {
 	for {
 		select {
-		case m := <-b.gameOut:
+		case m := <-b.out:
 			return m, nil
 		case <-time.After(1 * time.Second):
 			return nil, fmt.Errorf("timeout waiting to message")
