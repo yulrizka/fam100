@@ -126,6 +126,9 @@ func (m *fam100Bot) handleInbox() {
 					continue
 
 				} else {
+					if ch.game.State != fam100.Created {
+						continue
+					}
 					ch.quorumPlayer[msg.From.ID] = true
 					if len(ch.quorumPlayer) == minQuorum {
 						ch.game.Start()
@@ -179,23 +182,35 @@ func (m *fam100Bot) handleOutbox() {
 					m.out <- bot.Message{Chat: bot.Chat{ID: msg.GameID, Type: bot.Group}, Text: text, Format: bot.Markdown}
 				case fam100.RoundStarted:
 					text := fmt.Sprintf(fam100.T("Ronde %d dari %d"), msg.Round, fam100.RoundPerGame)
+					text += "\n\n" + formatRoundText(msg.RoundText)
+					m.out <- bot.Message{Chat: bot.Chat{ID: msg.GameID, Type: bot.Group}, Text: text, Format: bot.HTML}
+				case fam100.Finished:
+					text := fmt.Sprintf(fam100.T("Game selesai"))
 					m.out <- bot.Message{Chat: bot.Chat{ID: msg.GameID, Type: bot.Group}, Text: text, Format: bot.Markdown}
 				}
 
 			case fam100.RoundTextMessage:
-				m.out <- formatRoundText(msg)
+				text := formatRoundText(msg)
+				m.out <- bot.Message{
+					Chat:   bot.Chat{ID: msg.GameID, Type: bot.Group},
+					Text:   text,
+					Format: bot.HTML,
+				}
+
+			case fam100.TickMessage:
+				if msg.TimeLeft == 30*time.Second || msg.TimeLeft == 10*time.Second {
+					text := fmt.Sprintf(fam100.T("sisa waktu %s"), msg.TimeLeft)
+					m.out <- bot.Message{Chat: bot.Chat{ID: msg.GameID, Type: bot.Group}, Text: text, Format: bot.HTML}
+				}
 
 			case fam100.TextMessage:
-				m.out <- bot.Message{
-					Chat: bot.Chat{ID: msg.GameID, Type: bot.Group},
-					Text: msg.Text,
-				}
+				m.out <- bot.Message{Chat: bot.Chat{ID: msg.GameID, Type: bot.Group}, Text: msg.Text}
 			}
 		}
 	}
 }
 
-func formatRoundText(msg fam100.RoundTextMessage) bot.Message {
+func formatRoundText(msg fam100.RoundTextMessage) string {
 
 	var b bytes.Buffer
 	w := bufio.NewWriter(&b)
@@ -203,18 +218,16 @@ func formatRoundText(msg fam100.RoundTextMessage) bot.Message {
 	fmt.Fprintf(w, "[id: %d] %s?\n\n", msg.QuestionID, msg.QuestionText)
 	for i, a := range msg.Answers {
 		if a.Answered {
-			fmt.Fprintf(w, "%d. %-30s [ %2d ] - %s\n", i+1, a.Text, a.Score, a.PlayerName)
+			fmt.Fprintf(w, "%d. (%2d) %s \n  » <i>%s</i>\n", i+1, a.Score, a.Text, a.PlayerName)
 		} else {
 			if msg.ShowUnanswered {
-				fmt.Fprintf(w, "%d. %-30s [ %2d ]\n", i+1, a.Text, a.Score)
+				fmt.Fprintf(w, "%d. (%2d) %s \n", i+1, a.Score, a.Text)
 			} else {
 				fmt.Fprintf(w, "%d. _________________________\n", i+1)
 			}
 		}
 	}
 	w.Flush()
-	return bot.Message{
-		Chat: bot.Chat{ID: msg.GameID, Type: bot.Group},
-		Text: b.String(),
-	}
+
+	return b.String()
 }

@@ -24,9 +24,10 @@ type TextMessage struct {
 
 // StateMessage represents state change in the game
 type StateMessage struct {
-	GameID string
-	Round  int
-	State  State
+	GameID    string
+	Round     int
+	State     State
+	RoundText RoundTextMessage
 }
 
 // TickMessage represents time left notification
@@ -70,8 +71,8 @@ const (
 	Created       State = "created"
 	Started       State = "started"
 	Finished      State = "finished"
-	RoundStarted  State = "timeout"
-	RoundTimeout  State = "timeout"
+	RoundStarted  State = "roundStarted"
+	RoundTimeout  State = "RoundTimeout"
 	RoundFinished State = "roundFinished"
 )
 
@@ -111,13 +112,13 @@ func (g *Game) Start() {
 		g.Out <- StateMessage{GameID: g.ID, State: Started}
 		for i := 0; i < RoundPerGame; i++ {
 			g.roundPlayed++
-			g.startRound()
+			g.startRound(i + 1)
 		}
 		g.Out <- StateMessage{GameID: g.ID, State: Finished}
 	}()
 }
 
-func (g *Game) startRound() error {
+func (g *Game) startRound(currentRound int) error {
 	g.roundPlayed++
 	r, err := newRound(g.seed, g.roundPlayed, g.players)
 	if err != nil {
@@ -128,8 +129,12 @@ func (g *Game) startRound() error {
 	timeLeftTick := time.NewTicker(tickDuration)
 
 	// print question
-	g.Out <- StateMessage{GameID: g.ID, State: RoundStarted}
-	g.Out <- r.questionText(g.ID, false)
+	g.Out <- StateMessage{
+		GameID:    g.ID,
+		State:     RoundStarted,
+		Round:     currentRound,
+		RoundText: r.questionText(g.ID, false),
+	}
 
 	for {
 		select {
@@ -153,7 +158,7 @@ func (g *Game) startRound() error {
 			if r.finised() {
 				r.state = RoundFinished
 				timeLeftTick.Stop()
-				g.Out <- StateMessage{GameID: g.ID, State: RoundFinished}
+				g.Out <- StateMessage{GameID: g.ID, State: RoundFinished, Round: currentRound}
 				return nil
 			}
 		case <-timeLeftTick.C: // inform time left
@@ -162,9 +167,9 @@ func (g *Game) startRound() error {
 			default:
 			}
 		case <-timeout:
-			g.State = Finished
+			g.State = RoundFinished
 			timeLeftTick.Stop()
-			g.Out <- StateMessage{GameID: g.ID, State: RoundTimeout}
+			g.Out <- StateMessage{GameID: g.ID, State: RoundTimeout, Round: currentRound}
 			showUnAnswered := true
 			msg := r.questionText(g.ID, showUnAnswered)
 			g.Out <- msg
@@ -213,7 +218,7 @@ func (r *round) questionText(gameID string, showUnAnswered bool) RoundTextMessag
 			ra.Answered = true
 			ra.PlayerName = r.players[pID].Name
 		}
-		ras = append(ras, ra)
+		ras[i] = ra
 	}
 
 	msg := RoundTextMessage{
@@ -250,7 +255,7 @@ func (r *round) scores() map[PlayerID]int {
 }
 
 func (r *round) answer(p Player, text string) (correct, answered bool, index int) {
-	if r.state != Started {
+	if r.state != RoundStarted {
 		return false, false, -1
 	}
 
