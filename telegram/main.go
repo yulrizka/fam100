@@ -1,6 +1,8 @@
 package main
 
 import (
+	"bufio"
+	"bytes"
 	"fmt"
 	"log"
 	"os"
@@ -126,8 +128,6 @@ func (m *fam100Bot) handleInbox() {
 				} else {
 					ch.quorumPlayer[msg.From.ID] = true
 					if len(ch.quorumPlayer) == minQuorum {
-						text := fmt.Sprintf(fam100.T("Game dimulai, siapapun boleh jawab tanpa harus /join"))
-						m.out <- bot.Message{Chat: bot.Chat{ID: chID, Type: bot.Group}, Text: text}
 						ch.game.Start()
 						continue
 					}
@@ -142,8 +142,8 @@ func (m *fam100Bot) handleInbox() {
 			if msg.Text == "/leave" || msg.Text == "/leave@"+botName {
 				if _, ok := ch.quorumPlayer[msg.From.ID]; ok {
 					delete(ch.quorumPlayer, msg.From.ID)
-					text := fmt.Sprintf(fam100.T("%s ok :("))
-					m.out <- bot.Message{Chat: bot.Chat{ID: chID, Type: bot.Group}, Text: text}
+					text := fmt.Sprintf(fam100.T("*%s* OK,  😞"), msg.From.FullName())
+					m.out <- bot.Message{Chat: bot.Chat{ID: chID, Type: bot.Group}, Text: text, Format: bot.Markdown}
 				}
 				continue
 			}
@@ -167,12 +167,54 @@ func (m *fam100Bot) handleOutbox() {
 		case <-m.quit:
 			return
 		case rawMsg := <-m.gameOut:
-			if gameMsg, ok := rawMsg.(fam100.TextMessage); ok {
+
+			switch msg := rawMsg.(type) {
+			default:
+				// TODO: log error
+
+			case fam100.StateMessage:
+				switch msg.State {
+				case fam100.Started:
+					text := fmt.Sprintf(fam100.T("Game dimulai, siapapun boleh menjawab tanpa `/join`"))
+					m.out <- bot.Message{Chat: bot.Chat{ID: msg.GameID, Type: bot.Group}, Text: text, Format: bot.Markdown}
+				case fam100.RoundStarted:
+					text := fmt.Sprintf(fam100.T("Ronde %d dari %d"), msg.Round, fam100.RoundPerGame)
+					m.out <- bot.Message{Chat: bot.Chat{ID: msg.GameID, Type: bot.Group}, Text: text, Format: bot.Markdown}
+				}
+
+			case fam100.RoundTextMessage:
+				m.out <- formatRoundText(msg)
+
+			case fam100.TextMessage:
 				m.out <- bot.Message{
-					Chat: bot.Chat{ID: gameMsg.GameID, Type: bot.Group},
-					Text: gameMsg.Text,
+					Chat: bot.Chat{ID: msg.GameID, Type: bot.Group},
+					Text: msg.Text,
 				}
 			}
 		}
+	}
+}
+
+func formatRoundText(msg fam100.RoundTextMessage) bot.Message {
+
+	var b bytes.Buffer
+	w := bufio.NewWriter(&b)
+
+	fmt.Fprintf(w, "[id: %d] %s?\n\n", msg.QuestionID, msg.QuestionText)
+	for i, a := range msg.Answers {
+		if a.Answered {
+			fmt.Fprintf(w, "%d. %-30s [ %2d ] - %s\n", i+1, a.Text, a.Score, a.PlayerName)
+		} else {
+			if msg.ShowUnanswered {
+				fmt.Fprintf(w, "%d. %-30s [ %2d ]\n", i+1, a.Text, a.Score)
+			} else {
+				fmt.Fprintf(w, "%d. _________________________\n", i+1)
+			}
+		}
+	}
+	w.Flush()
+	return bot.Message{
+		Chat: bot.Chat{ID: msg.GameID, Type: bot.Group},
+		Text: b.String(),
 	}
 }

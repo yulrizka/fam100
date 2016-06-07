@@ -1,7 +1,6 @@
 package fam100
 
 import (
-	"fmt"
 	"log"
 	"time"
 )
@@ -10,6 +9,7 @@ var (
 	roundDuration        = 60 * time.Second
 	tickDuration         = 10 * time.Second
 	TickAfterWrongAnswer = false
+	RoundPerGame         = 3
 )
 
 // Message to communitace between player and the game
@@ -25,6 +25,7 @@ type TextMessage struct {
 // StateMessage represents state change in the game
 type StateMessage struct {
 	GameID string
+	Round  int
 	State  State
 }
 
@@ -34,23 +35,22 @@ type TickMessage struct {
 	TimeLeft time.Duration
 }
 
-type roundAnswers struct {
-	Text     string
-	Score    int
-	Answered bool
-	PlayerID PlayerID
-}
-
 // RoundTextMessage represents question and answer for this round
 type RoundTextMessage struct {
-	Beginning      bool // Beginning of the round
-	End            bool // End of the round
-	Timeout        bool // Timeout reached
 	GameID         string
+	Round          int
 	QuestionText   string
+	QuestionID     int
 	Answers        []roundAnswers
 	ShowUnanswered bool // reveal un-answered question
 	TimeLeft       time.Duration
+}
+
+type roundAnswers struct {
+	Text       string
+	Score      int
+	Answered   bool
+	PlayerName string
 }
 
 // PlayerID is the player ID type
@@ -70,6 +70,8 @@ const (
 	Created       State = "created"
 	Started       State = "started"
 	Finished      State = "finished"
+	RoundStarted  State = "timeout"
+	RoundTimeout  State = "timeout"
 	RoundFinished State = "roundFinished"
 )
 
@@ -106,12 +108,10 @@ func NewGame(id string, seed int64, roundPlayed int, in, out chan Message) (r *G
 func (g *Game) Start() {
 	g.State = Started
 	go func() {
-		nRound := 3
-		for i := 0; i < nRound; i++ {
-			text := fmt.Sprintf(T("Ronde %d dari %d"), i+1, nRound)
-			g.Out <- TextMessage{GameID: g.ID, Text: text}
-			g.startRound()
+		g.Out <- StateMessage{GameID: g.ID, State: Started}
+		for i := 0; i < RoundPerGame; i++ {
 			g.roundPlayed++
+			g.startRound()
 		}
 		g.Out <- StateMessage{GameID: g.ID, State: Finished}
 	}()
@@ -123,15 +123,13 @@ func (g *Game) startRound() error {
 	if err != nil {
 		return err
 	}
-	r.state = Started
+	r.state = RoundStarted
 	timeout := time.After(roundDuration)
 	timeLeftTick := time.NewTicker(tickDuration)
 
 	// print question
-	g.Out <- StateMessage{GameID: g.ID, State: Started}
-	qt := r.questionText(g.ID, false)
-	qt.Beginning = true
-	g.Out <- qt
+	g.Out <- StateMessage{GameID: g.ID, State: RoundStarted}
+	g.Out <- r.questionText(g.ID, false)
 
 	for {
 		select {
@@ -153,7 +151,7 @@ func (g *Game) startRound() error {
 			// show correct answer
 			g.Out <- r.questionText(g.ID, false)
 			if r.finised() {
-				r.state = Finished
+				r.state = RoundFinished
 				timeLeftTick.Stop()
 				g.Out <- StateMessage{GameID: g.ID, State: RoundFinished}
 				return nil
@@ -166,10 +164,9 @@ func (g *Game) startRound() error {
 		case <-timeout:
 			g.State = Finished
 			timeLeftTick.Stop()
-			g.Out <- StateMessage{GameID: g.ID, State: RoundFinished}
+			g.Out <- StateMessage{GameID: g.ID, State: RoundTimeout}
 			showUnAnswered := true
 			msg := r.questionText(g.ID, showUnAnswered)
-			msg.End, msg.Timeout = true, true
 			g.Out <- msg
 			return nil
 		}
@@ -185,8 +182,8 @@ type round struct {
 	endAt   time.Time
 }
 
-func newRound(seed int64, roundPlayed int, players map[PlayerID]Player) (*round, error) {
-	q, err := NextQuestion(seed, roundPlayed)
+func newRound(seed int64, totalRoundPlayed int, players map[PlayerID]Player) (*round, error) {
+	q, err := NextQuestion(seed, totalRoundPlayed)
 	if err != nil {
 		return nil, err
 	}
@@ -205,25 +202,30 @@ func (r *round) timeLeft() time.Duration {
 }
 
 func (r *round) questionText(gameID string, showUnAnswered bool) RoundTextMessage {
-	/*
-		var b bytes.Buffer
-		w := bufio.NewWriter(&b)
+	ras := make([]roundAnswers, len(r.q.answers))
 
-		fmt.Fprintf(w, "[id: %d] %s?\n\n", r.q.id, r.q.text)
-		for i, a := range r.q.answers {
-			if pID := r.correct[i]; pID != "" {
-				fmt.Fprintf(w, "%d. %-30s [ %2d ] - %s\n", i+1, a.String(), a.score, r.players[pID].Name)
-			} else {
-				if showUnAnswered {
-					fmt.Fprintf(w, "%d. %-30s [ %2d ]\n", i+1, a.String(), a.score)
-				} else {
-					fmt.Fprintf(w, "%d. _________________________\n", i+1)
-				}
-			}
+	for i, ans := range r.q.answers {
+		ra := roundAnswers{
+			Text:  ans.String(),
+			Score: ans.score,
 		}
-		w.Flush()
-	*/
-	return RoundTextMessage{}
+		if pID := r.correct[i]; pID != "" {
+			ra.Answered = true
+			ra.PlayerName = r.players[pID].Name
+		}
+		ras = append(ras, ra)
+	}
+
+	msg := RoundTextMessage{
+		GameID:         gameID,
+		QuestionText:   r.q.text,
+		QuestionID:     r.q.id,
+		ShowUnanswered: showUnAnswered,
+		TimeLeft:       r.timeLeft(),
+		Answers:        ras,
+	}
+
+	return msg
 }
 
 func (r *round) finised() bool {
