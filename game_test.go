@@ -2,8 +2,21 @@ package fam100
 
 import (
 	"math/rand"
+	"os"
 	"testing"
 )
+
+func TestMain(m *testing.M) {
+	redisPrefix = "test_fam100"
+	if err := LoadQuestion("fam100.db"); err != nil {
+		panic(err)
+	}
+	DefaultDB.Init()
+	DefaultDB.conn.Do("FLUSHDB")
+	retCode := m.Run()
+	DB.Close()
+	os.Exit(retCode)
+}
 
 func TestQuestionString(t *testing.T) {
 	var seed, totalRoundPlayed = 7, 0

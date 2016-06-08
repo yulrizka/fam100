@@ -1,18 +1,6 @@
 package fam100
 
-import (
-	"os"
-	"testing"
-)
-
-func TestMain(m *testing.M) {
-	if err := LoadQuestion("fam100.db"); err != nil {
-		panic(err)
-	}
-	retCode := m.Run()
-	DB.Close()
-	os.Exit(retCode)
-}
+import "testing"
 
 func TestGetQuestion(t *testing.T) {
 	q, err := GetQuestion(1)

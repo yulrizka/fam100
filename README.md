@@ -5,7 +5,12 @@ Famm100 is a text game library to play "Family Fued"
 Current supported platform:
 
 * CLI
+* Telegram
 
 Future platform additions:
 
-* Telegram
+* Slack
+
+# Contributors
+
+* Ahmy Yulrizka (yulrizka@gmail.com)
