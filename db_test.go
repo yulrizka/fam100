@@ -2,22 +2,6 @@ package fam100
 
 import "testing"
 
-func TestNextGame(t *testing.T) {
-	chanID := "foo"
-	roundPlayed := 100
-	if err := DefaultDB.incRoundPlayed(chanID, roundPlayed); err != nil {
-		t.Error(err)
-	}
-
-	_, nextRound, err := DefaultDB.nextGame(chanID)
-	if err != nil {
-		t.Error(err)
-	}
-	if nextRound != roundPlayed+1 {
-		t.Errorf("invalid next round")
-	}
-}
-
 func TestSaveScore(t *testing.T) {
 	ranking := rank{
 		{PlayerID: "ID1", Name: "Name 1", Score: 15},

@@ -183,21 +183,21 @@ func (m *fam100Bot) handleOutbox() {
 				switch msg.State {
 				case fam100.Started:
 					text := fmt.Sprintf(fam100.T("Game dimulai, siapapun boleh menjawab tanpa `/join`"))
-					m.out <- bot.Message{Chat: bot.Chat{ID: msg.GameID, Type: bot.Group}, Text: text, Format: bot.Markdown}
+					m.out <- bot.Message{Chat: bot.Chat{ID: msg.ChanID, Type: bot.Group}, Text: text, Format: bot.Markdown}
 				case fam100.RoundStarted:
 					// TODO: incGame here
 					text := fmt.Sprintf(fam100.T("Ronde %d dari %d"), msg.Round, fam100.RoundPerGame)
 					text += "\n\n" + formatRoundText(msg.RoundText)
-					m.out <- bot.Message{Chat: bot.Chat{ID: msg.GameID, Type: bot.Group}, Text: text, Format: bot.HTML}
+					m.out <- bot.Message{Chat: bot.Chat{ID: msg.ChanID, Type: bot.Group}, Text: text, Format: bot.HTML}
 				case fam100.Finished:
 					text := fmt.Sprintf(fam100.T("Game selesai"))
-					m.out <- bot.Message{Chat: bot.Chat{ID: msg.GameID, Type: bot.Group}, Text: text, Format: bot.Markdown}
+					m.out <- bot.Message{Chat: bot.Chat{ID: msg.ChanID, Type: bot.Group}, Text: text, Format: bot.Markdown}
 				}
 
 			case fam100.RoundTextMessage:
 				text := formatRoundText(msg)
 				m.out <- bot.Message{
-					Chat:   bot.Chat{ID: msg.GameID, Type: bot.Group},
+					Chat:   bot.Chat{ID: msg.ChanID, Type: bot.Group},
 					Text:   text,
 					Format: bot.HTML,
 				}
@@ -205,11 +205,11 @@ func (m *fam100Bot) handleOutbox() {
 			case fam100.TickMessage:
 				if msg.TimeLeft == 30*time.Second || msg.TimeLeft == 10*time.Second {
 					text := fmt.Sprintf(fam100.T("sisa waktu %s"), msg.TimeLeft)
-					m.out <- bot.Message{Chat: bot.Chat{ID: msg.GameID, Type: bot.Group}, Text: text, Format: bot.HTML}
+					m.out <- bot.Message{Chat: bot.Chat{ID: msg.ChanID, Type: bot.Group}, Text: text, Format: bot.HTML}
 				}
 
 			case fam100.TextMessage:
-				m.out <- bot.Message{Chat: bot.Chat{ID: msg.GameID, Type: bot.Group}, Text: msg.Text}
+				m.out <- bot.Message{Chat: bot.Chat{ID: msg.ChanID, Type: bot.Group}, Text: msg.Text}
 			}
 		}
 	}

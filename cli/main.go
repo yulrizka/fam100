@@ -73,35 +73,37 @@ func startGame() {
 
 		in := make(chan fam100.Message)
 		out := make(chan fam100.Message)
-		game := fam100.NewGame("cli", seed, roundPlayed, in, out)
+		game, _ := fam100.NewGame("cli", in, out)
 		game.Start()
-	GAME:
-		for {
-			select {
-			case m := <-out:
-				switch m.Kind {
-				case fam100.TextMessage:
-					fmt.Println(m.Text)
-					fmt.Println()
-				case fam100.StateMessage:
-					switch m.Text {
-					case string(fam100.Finished):
-						break GAME
-					case string(fam100.RoundFinished):
-						roundPlayed++
+		/*
+			GAME:
+					for {
+						select {
+						case m := <-out:
+								switch m.Kind {
+								case fam100.TextMessage:
+									fmt.Println(m.Text)
+									fmt.Println()
+								case fam100.StateMessage:
+									switch m.Text {
+									case string(fam100.Finished):
+										break GAME
+									case string(fam100.RoundFinished):
+										roundPlayed++
+									}
+								default:
+									// for debuging
+									//fmt.Printf("m = %+v\n", m)
+								}
+						case i := <-input:
+							fmt.Println()
+							msg := fam100.Message{
+								Player: fam100.Player{ID: fam100.PlayerID(name), Name: name},
+								Text:   i,
+							}
+							in <- msg
+						}
 					}
-				default:
-					// for debuging
-					//fmt.Printf("m = %+v\n", m)
-				}
-			case i := <-input:
-				fmt.Println()
-				msg := fam100.Message{
-					Player: fam100.Player{ID: fam100.PlayerID(name), Name: name},
-					Text:   i,
-				}
-				in <- msg
-			}
-		}
+		*/
 	}
 }

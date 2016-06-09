@@ -18,14 +18,14 @@ type Message interface{}
 
 // TextMessage represents a chat message
 type TextMessage struct {
-	GameID string
+	ChanID string
 	Player Player
 	Text   string
 }
 
 // StateMessage represents state change in the game
 type StateMessage struct {
-	GameID    string
+	ChanID    string
 	Round     int
 	State     State
 	RoundText RoundTextMessage
@@ -33,13 +33,13 @@ type StateMessage struct {
 
 // TickMessage represents time left notification
 type TickMessage struct {
-	GameID   string
+	ChanID   string
 	TimeLeft time.Duration
 }
 
 // RoundTextMessage represents question and answer for this round
 type RoundTextMessage struct {
-	GameID         string
+	ChanID         string
 	Round          int
 	QuestionText   string
 	QuestionID     int
@@ -80,7 +80,7 @@ const (
 // Game can consist of multiple round
 // each round user will be asked question and gain ponint
 type Game struct {
-	ID               string
+	ChanID           string
 	State            State
 	TotalRoundPlayed int
 	players          map[PlayerID]Player
@@ -101,7 +101,7 @@ func NewGame(id string, in, out chan Message) (r *Game, err error) {
 	log.Printf("Started game channel:%s, seed:%d, totalRoundPlayed:%d", id, seed, totalRoundPlayed)
 
 	return &Game{
-		ID:               id,
+		ChanID:           id,
 		State:            Created,
 		players:          make(map[PlayerID]Player),
 		seed:             seed,
@@ -115,20 +115,20 @@ func NewGame(id string, in, out chan Message) (r *Game, err error) {
 func (g *Game) Start() {
 	g.State = Started
 	go func() {
-		g.Out <- StateMessage{GameID: g.ID, State: Started}
+		g.Out <- StateMessage{ChanID: g.ChanID, State: Started}
 		for i := 0; i < RoundPerGame; i++ {
 			g.startRound(i + 1)
 			if i != RoundPerGame-1 {
 				time.Sleep(delayBetweenRound)
 			}
 		}
-		g.Out <- StateMessage{GameID: g.ID, State: Finished}
+		g.Out <- StateMessage{ChanID: g.ChanID, State: Finished}
 	}()
 }
 
 func (g *Game) startRound(currentRound int) error {
 	g.TotalRoundPlayed++
-	DefaultDB.incRoundPlayed(g.ID)
+	DefaultDB.incRoundPlayed(g.ChanID)
 	r, err := newRound(g.seed, g.TotalRoundPlayed, g.players)
 	if err != nil {
 		return err
@@ -139,10 +139,10 @@ func (g *Game) startRound(currentRound int) error {
 
 	// print question
 	g.Out <- StateMessage{
-		GameID:    g.ID,
+		ChanID:    g.ChanID,
 		State:     RoundStarted,
 		Round:     currentRound,
-		RoundText: r.questionText(g.ID, false),
+		RoundText: r.questionText(g.ChanID, false),
 	}
 
 	for {
@@ -157,30 +157,30 @@ func (g *Game) startRound(currentRound int) error {
 			correct, _, _ := r.answer(msg.Player, answer)
 			if !correct {
 				if TickAfterWrongAnswer {
-					g.Out <- TickMessage{GameID: g.ID, TimeLeft: r.timeLeft()}
+					g.Out <- TickMessage{ChanID: g.ChanID, TimeLeft: r.timeLeft()}
 				}
 				continue
 			}
 
 			// show correct answer
-			g.Out <- r.questionText(g.ID, false)
+			g.Out <- r.questionText(g.ChanID, false)
 			if r.finised() {
 				r.state = RoundFinished
 				timeLeftTick.Stop()
-				g.Out <- StateMessage{GameID: g.ID, State: RoundFinished, Round: currentRound}
+				g.Out <- StateMessage{ChanID: g.ChanID, State: RoundFinished, Round: currentRound}
 				return nil
 			}
 		case <-timeLeftTick.C: // inform time left
 			select {
-			case g.Out <- TickMessage{GameID: g.ID, TimeLeft: r.timeLeft()}:
+			case g.Out <- TickMessage{ChanID: g.ChanID, TimeLeft: r.timeLeft()}:
 			default:
 			}
 		case <-timeout:
 			g.State = RoundFinished
 			timeLeftTick.Stop()
-			g.Out <- StateMessage{GameID: g.ID, State: RoundTimeout, Round: currentRound}
+			g.Out <- StateMessage{ChanID: g.ChanID, State: RoundTimeout, Round: currentRound}
 			showUnAnswered := true
-			msg := r.questionText(g.ID, showUnAnswered)
+			msg := r.questionText(g.ChanID, showUnAnswered)
 			g.Out <- msg
 			return nil
 		}
@@ -231,7 +231,7 @@ func (r *round) questionText(gameID string, showUnAnswered bool) RoundTextMessag
 	}
 
 	msg := RoundTextMessage{
-		GameID:         gameID,
+		ChanID:         gameID,
 		QuestionText:   r.q.text,
 		QuestionID:     r.q.id,
 		ShowUnanswered: showUnAnswered,
