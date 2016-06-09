@@ -8,17 +8,22 @@ import (
 	"os"
 	"time"
 
+	"golang.org/x/net/context"
+
 	"github.com/yulrizka/bot"
 	"github.com/yulrizka/fam100"
 )
 
 var (
-	minQuorum            = 2 // minimum players to start game
+	minQuorum            = 3 // minimum players to start game
+	quorumWait           = 120 * time.Second
 	telegramInBufferSize = 10000
 	gameInBufferSize     = 10000
 	gameOutBufferSize    = 10000
 	botName              = "fam100bot"
 	startedAt            time.Time
+
+	timeoutChan = make(chan string, 10000)
 )
 
 func init() {
@@ -49,8 +54,38 @@ func main() {
 
 // channel represents channels chat rooms
 type channel struct {
+	ID           string
 	game         *fam100.Game
 	quorumPlayer map[string]bool
+	startedAt    time.Time
+	cancelTimer  context.CancelFunc
+}
+
+func (c *channel) startQuorumTimer(wait time.Duration, out chan bot.Message) {
+	var ctx context.Context
+	ctx, c.cancelTimer = context.WithCancel(context.Background())
+	go func() {
+		endAt := time.Now().Add(quorumWait)
+		notify := []int64{60, 30, 15}
+
+		for {
+			if len(notify) == 0 {
+				timeoutChan <- c.ID
+				return
+			}
+			timeLeft := time.Duration(notify[0]) * time.Second
+			tickAt := endAt.Add(-timeLeft)
+			notify = notify[1:]
+
+			select {
+			case <-ctx.Done(): //canceled
+				return
+			case <-time.After(tickAt.Sub(time.Now())):
+				text := fmt.Sprintf(fam100.T("Waktu sisa %s"), timeLeft)
+				out <- bot.Message{Chat: bot.Chat{ID: c.ID, Type: bot.Group}, Text: text, Format: bot.Markdown}
+			}
+		}
+	}()
 }
 
 type fam100Bot struct {
@@ -108,40 +143,53 @@ func (m *fam100Bot) handleInbox() {
 				// For now only accept group message
 				return
 			}
-			chID := msg.Chat.ID
-			ch, ok := m.channels[chID]
+			chanID := msg.Chat.ID
+			ch, ok := m.channels[chanID]
 
 			if msg.Text == "/join" || msg.Text == "/join@"+botName {
 				if !ok {
 					// create a new game
 					quorumPlayer := map[string]bool{msg.From.ID: true}
-					game, err := fam100.NewGame(chID, m.gameIn, m.gameOut)
+					game, err := fam100.NewGame(chanID, m.gameIn, m.gameOut)
 					if err != nil {
 						log.Printf("ERROR creating a new game")
 						continue
 					}
 
-					m.channels[chID] = &channel{
-						game:         game,
-						quorumPlayer: quorumPlayer,
-					}
-					text := fmt.Sprintf(fam100.T("*%s* OK, butuh %d orang lagi"), msg.From.FullName(), minQuorum-len(quorumPlayer))
-					m.out <- bot.Message{Chat: bot.Chat{ID: chID, Type: bot.Group}, Text: text, Format: bot.Markdown}
+					ch := &channel{ID: chanID, game: game, quorumPlayer: quorumPlayer}
+					m.channels[chanID] = ch
+					ch.startQuorumTimer(quorumWait, m.out)
+					text := fmt.Sprintf(
+						fam100.T("*%s* OK, butuh %d orang lagi, sisa waktu %s"),
+						msg.From.FullName(),
+						minQuorum-len(quorumPlayer),
+						quorumWait,
+					)
+					m.out <- bot.Message{Chat: bot.Chat{ID: chanID, Type: bot.Group}, Text: text, Format: bot.Markdown}
 					continue
 
 				} else {
-					if ch.game.State != fam100.Created {
+					if ch.game.State != fam100.Created || ch.quorumPlayer[msg.From.ID] {
 						continue
 					}
+					ch.cancelTimer()
 					ch.quorumPlayer[msg.From.ID] = true
 					if len(ch.quorumPlayer) == minQuorum {
 						ch.game.Start()
 						continue
 					}
+					ch.startQuorumTimer(quorumWait, m.out)
+					text := fmt.Sprintf(
+						fam100.T("*%s* OK, butuh %d orang lagi, sisa waktu %s"),
+						msg.From.FullName(),
+						minQuorum-len(ch.quorumPlayer),
+						quorumWait,
+					)
+					m.out <- bot.Message{Chat: bot.Chat{ID: chanID, Type: bot.Group}, Text: text, Format: bot.Markdown}
 				}
 			}
 
-			if chID == "" || !ok {
+			if chanID == "" || !ok {
 				// ignore message since no game started for that channel
 				continue
 			}
@@ -150,7 +198,7 @@ func (m *fam100Bot) handleInbox() {
 				if _, ok := ch.quorumPlayer[msg.From.ID]; ok {
 					delete(ch.quorumPlayer, msg.From.ID)
 					text := fmt.Sprintf(fam100.T("*%s* OK,  😞"), msg.From.FullName())
-					m.out <- bot.Message{Chat: bot.Chat{ID: chID, Type: bot.Group}, Text: text, Format: bot.Markdown}
+					m.out <- bot.Message{Chat: bot.Chat{ID: chanID, Type: bot.Group}, Text: text, Format: bot.Markdown}
 				}
 				continue
 			}
@@ -164,6 +212,12 @@ func (m *fam100Bot) handleInbox() {
 				Text:   msg.Text,
 			}
 			ch.game.In <- gameMsg
+
+		case chanID := <-timeoutChan:
+			// chan failed to get quorum
+			delete(m.channels, chanID)
+			text := fmt.Sprintf(fam100.T("Permainan dibatalkan, jumlah pemain tidak cukup  😞"))
+			m.out <- bot.Message{Chat: bot.Chat{ID: chanID, Type: bot.Group}, Text: text, Format: bot.Markdown}
 		}
 	}
 }
