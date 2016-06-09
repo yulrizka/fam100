@@ -33,7 +33,7 @@ func main() {
 	if err := fam100.LoadQuestion("fam100.db"); err != nil {
 		panic(err)
 	}
-	if err := initRedis(); err != nil {
+	if err := fam100.DefaultDB.Init(); err != nil {
 		panic(err)
 	}
 	startedAt = time.Now()
@@ -50,8 +50,6 @@ func main() {
 // channel represents channels chat rooms
 type channel struct {
 	game         *fam100.Game
-	totalPlayed  int
-	seed         int64
 	quorumPlayer map[string]bool
 }
 
@@ -115,18 +113,17 @@ func (m *fam100Bot) handleInbox() {
 
 			if msg.Text == "/join" || msg.Text == "/join@"+botName {
 				if !ok {
-					seed, next, err := nextGame(chID)
-					if err != nil {
-						log.Printf("ERROR getting nextGame seed, channel:%s, %s", chID, err)
-						continue
-					}
 					// create a new game
 					quorumPlayer := map[string]bool{msg.From.ID: true}
+					game, err := fam100.NewGame(chID, m.gameIn, m.gameOut)
+					if err != nil {
+						log.Printf("ERROR creating a new game")
+						continue
+					}
+
 					m.channels[chID] = &channel{
-						game:         fam100.NewGame(chID, seed, next, m.gameIn, m.gameOut),
+						game:         game,
 						quorumPlayer: quorumPlayer,
-						seed:         seed,
-						totalPlayed:  next,
 					}
 					text := fmt.Sprintf(fam100.T("*%s* OK, butuh %d orang lagi"), msg.From.FullName(), minQuorum-len(quorumPlayer))
 					m.out <- bot.Message{Chat: bot.Chat{ID: chID, Type: bot.Group}, Text: text, Format: bot.Markdown}
@@ -226,7 +223,7 @@ func formatRoundText(msg fam100.RoundTextMessage) string {
 	fmt.Fprintf(w, "[id: %d] %s?\n\n", msg.QuestionID, msg.QuestionText)
 	for i, a := range msg.Answers {
 		if a.Answered {
-			fmt.Fprintf(w, "%d. (%2d) %s \n  » <i>%s</i>\n", i+1, a.Score, a.Text, a.PlayerName)
+			fmt.Fprintf(w, "%d. (%2d) %s \n  ✓ <i>%s</i>\n", i+1, a.Score, a.Text, a.PlayerName)
 		} else {
 			if msg.ShowUnanswered {
 				fmt.Fprintf(w, "%d. (%2d) %s \n", i+1, a.Score, a.Text)

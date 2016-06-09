@@ -54,8 +54,8 @@ func (r *RedisDB) nextGame(chanID string) (seed int64, nextRound int, err error)
 	return seed, nextRound + 1, nil
 }
 
-func (r *RedisDB) incRoundPlayed(chanID string, roundPlayed int) error {
-	_, err := r.conn.Do("SET", channelKey+chanID, roundPlayed)
+func (r *RedisDB) incRoundPlayed(chanID string) error {
+	_, err := r.conn.Do("INCR", channelKey+chanID)
 
 	return err
 }

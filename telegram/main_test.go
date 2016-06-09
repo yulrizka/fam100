@@ -14,7 +14,7 @@ func TestMain(m *testing.M) {
 	if err := fam100.LoadQuestion("fam100.db"); err != nil {
 		panic(err)
 	}
-	if err := initRedis(); err != nil {
+	if err := fam100.DefaultDB.Init(); err != nil {
 		panic(err)
 	}
 	retCode := m.Run()

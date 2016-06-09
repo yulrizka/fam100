@@ -8,6 +8,7 @@ import (
 var (
 	roundDuration        = 60 * time.Second
 	tickDuration         = 10 * time.Second
+	delayBetweenRound    = 5 * time.Second
 	TickAfterWrongAnswer = false
 	RoundPerGame         = 3
 )
@@ -92,8 +93,14 @@ type Game struct {
 // NewGame create a new round
 // Seed and totalRoundPlayed determine the random order of question
 // Seed can be any number, for example unix timestamp
-func NewGame(id string, seed int64, totalRoundPlayed int, in, out chan Message) (r *Game) {
-	r = &Game{
+func NewGame(id string, in, out chan Message) (r *Game, err error) {
+	seed, totalRoundPlayed, err := DefaultDB.nextGame(id)
+	if err != nil {
+		return nil, err
+	}
+	log.Printf("Started game channel:%s, seed:%d, totalRoundPlayed:%d", id, seed, totalRoundPlayed)
+
+	return &Game{
 		ID:               id,
 		State:            Created,
 		players:          make(map[PlayerID]Player),
@@ -101,8 +108,7 @@ func NewGame(id string, seed int64, totalRoundPlayed int, in, out chan Message) 
 		TotalRoundPlayed: totalRoundPlayed,
 		In:               in,
 		Out:              out,
-	}
-	return r
+	}, err
 }
 
 // Start the game
@@ -112,6 +118,9 @@ func (g *Game) Start() {
 		g.Out <- StateMessage{GameID: g.ID, State: Started}
 		for i := 0; i < RoundPerGame; i++ {
 			g.startRound(i + 1)
+			if i != RoundPerGame-1 {
+				time.Sleep(delayBetweenRound)
+			}
 		}
 		g.Out <- StateMessage{GameID: g.ID, State: Finished}
 	}()
@@ -119,6 +128,7 @@ func (g *Game) Start() {
 
 func (g *Game) startRound(currentRound int) error {
 	g.TotalRoundPlayed++
+	DefaultDB.incRoundPlayed(g.ID)
 	r, err := newRound(g.seed, g.TotalRoundPlayed, g.players)
 	if err != nil {
 		return err
