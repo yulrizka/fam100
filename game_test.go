@@ -31,9 +31,9 @@ func TestQuestionString(t *testing.T) {
 		Player{ID: "2", Name: "bar"},
 		Player{ID: "3", Name: "baz"},
 	}
-	idx := rand.Perm(len(r.q.answers))
+	idx := rand.Perm(len(r.q.Answers))
 	for i := 0; i < len(players); i++ {
-		answerText := r.q.answers[idx[i]].text[0]
+		answerText := r.q.Answers[idx[i]].Text[0]
 		player := players[rand.Intn(len(players))]
 		r.answer(player, answerText)
 	}

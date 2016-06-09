@@ -20,15 +20,17 @@ func (r rank) add(source rank) rank {
 	for _, v := range r {
 		lookup[v.PlayerID] = v
 	}
+
 	for _, s := range source {
 		if ps, ok := lookup[s.PlayerID]; !ok {
-			lookup[ps.PlayerID] = s
+			lookup[s.PlayerID] = s
 		} else {
 			ps.Name = s.Name
 			ps.Score += s.Score
 			lookup[s.PlayerID] = ps
 		}
 	}
+
 	result := make(rank, 0, len(lookup))
 	for _, v := range lookup {
 		result = append(result, v)

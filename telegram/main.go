@@ -184,23 +184,31 @@ func (m *fam100Bot) handleOutbox() {
 				case fam100.Started:
 					text := fmt.Sprintf(fam100.T("Game dimulai, siapapun boleh menjawab tanpa `/join`"))
 					m.out <- bot.Message{Chat: bot.Chat{ID: msg.ChanID, Type: bot.Group}, Text: text, Format: bot.Markdown}
+
 				case fam100.RoundStarted:
-					// TODO: incGame here
 					text := fmt.Sprintf(fam100.T("Ronde %d dari %d"), msg.Round, fam100.RoundPerGame)
 					text += "\n\n" + formatRoundText(msg.RoundText)
 					m.out <- bot.Message{Chat: bot.Chat{ID: msg.ChanID, Type: bot.Group}, Text: text, Format: bot.HTML}
+
 				case fam100.Finished:
-					text := fmt.Sprintf(fam100.T("Game selesai"))
+					delete(m.channels, msg.ChanID)
+					text := fmt.Sprintf(fam100.T("Game selesai!"))
 					m.out <- bot.Message{Chat: bot.Chat{ID: msg.ChanID, Type: bot.Group}, Text: text, Format: bot.Markdown}
 				}
 
 			case fam100.RoundTextMessage:
 				text := formatRoundText(msg)
-				m.out <- bot.Message{
-					Chat:   bot.Chat{ID: msg.ChanID, Type: bot.Group},
-					Text:   text,
-					Format: bot.HTML,
+				m.out <- bot.Message{Chat: bot.Chat{ID: msg.ChanID, Type: bot.Group}, Text: text, Format: bot.HTML}
+
+			case fam100.RankMessage:
+
+				text := formatRankText(msg)
+				if msg.Final {
+					text = fam100.T("Final score:") + text
+				} else {
+					text = fam100.T("Score sementara:") + text
 				}
+				m.out <- bot.Message{Chat: bot.Chat{ID: msg.ChanID, Type: bot.Group}, Text: text, Format: bot.HTML}
 
 			case fam100.TickMessage:
 				if msg.TimeLeft == 30*time.Second || msg.TimeLeft == 10*time.Second {
@@ -216,7 +224,6 @@ func (m *fam100Bot) handleOutbox() {
 }
 
 func formatRoundText(msg fam100.RoundTextMessage) string {
-
 	var b bytes.Buffer
 	w := bufio.NewWriter(&b)
 
@@ -230,6 +237,23 @@ func formatRoundText(msg fam100.RoundTextMessage) string {
 			} else {
 				fmt.Fprintf(w, "%d. _________________________\n", i+1)
 			}
+		}
+	}
+	w.Flush()
+
+	return b.String()
+}
+
+func formatRankText(msg fam100.RankMessage) string {
+	var b bytes.Buffer
+	w := bufio.NewWriter(&b)
+
+	fmt.Fprintf(w, "\n")
+	if len(msg.Rank) == 0 {
+		fmt.Fprintf(w, fam100.T("Tidak ada"))
+	} else {
+		for i, ps := range msg.Rank {
+			fmt.Fprintf(w, "%d. (%2d) %s\n", i+1, ps.Score, ps.Name)
 		}
 	}
 	w.Flush()

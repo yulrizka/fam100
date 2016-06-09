@@ -18,25 +18,25 @@ var (
 
 // Question for a round
 type Question struct {
-	id            int
-	text          string
-	answers       []answer
+	ID            int
+	Text          string
+	Answers       []answer
 	answersLookup map[string]*answer
 }
 
 type answer struct {
-	id    int
-	text  []string
-	score int
+	ID    int
+	Text  []string
+	Score int
 }
 
 func (a answer) String() string {
-	if len(a.text) == 1 {
-		return a.text[0]
+	if len(a.Text) == 1 {
+		return a.Text[0]
 	}
 
 	var b bytes.Buffer
-	for i, text := range a.text {
+	for i, text := range a.Text {
 		if i != 0 {
 			b.WriteString(" / ")
 		}
@@ -82,19 +82,19 @@ func GetQuestion(id int) (q Question, err error) {
 	for rows.Next() {
 		var a answer
 		aText := make([]sql.NullString, 2, 2)
-		if err := rows.Scan(&q.id, &q.text, &a.id, &aText[0], &aText[1], &a.score); err != nil {
+		if err := rows.Scan(&q.ID, &q.Text, &a.ID, &aText[0], &aText[1], &a.Score); err != nil {
 			return q, err
 		}
 		for _, text := range aText {
 			if text.String != "" {
-				a.text = append(a.text, text.String)
+				a.Text = append(a.Text, text.String)
 				q.answersLookup[text.String] = &a
 			}
 		}
-		if len(a.text) == 0 {
+		if len(a.Text) == 0 {
 			return q, fmt.Errorf("got empty text in one of the answers, question id %d", id)
 		}
-		q.answers = append(q.answers, a)
+		q.Answers = append(q.Answers, a)
 	}
 
 	return q, err
@@ -104,10 +104,10 @@ func GetQuestion(id int) (q Question, err error) {
 func (q Question) checkAnswer(text string) (correct bool, score, index int) {
 	text = strings.TrimSpace(strings.ToLower(text))
 
-	for i, ans := range q.answers {
-		for _, ansText := range ans.text {
+	for i, ans := range q.Answers {
+		for _, ansText := range ans.Text {
 			if text == ansText {
-				return true, ans.score, i
+				return true, ans.Score, i
 			}
 		}
 	}

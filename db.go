@@ -27,6 +27,11 @@ type RedisDB struct {
 	conn redis.Conn
 }
 
+func (r *RedisDB) Reset() error {
+	_, err := r.conn.Do("FLUSHALL")
+	return err
+}
+
 func (r *RedisDB) Init() (err error) {
 	r.conn, err = redis.Dial("tcp", ":6379")
 	if err != nil {
