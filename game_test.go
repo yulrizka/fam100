@@ -8,13 +8,12 @@ import (
 
 func TestMain(m *testing.M) {
 	redisPrefix = "test_fam100"
-	if err := LoadQuestion("fam100.db"); err != nil {
+	if err := InitQuestion("fam100.db"); err != nil {
 		panic(err)
 	}
 	DefaultDB.Init()
 	DefaultDB.conn.Do("FLUSHDB")
 	retCode := m.Run()
-	DB.Close()
 	os.Exit(retCode)
 }
 

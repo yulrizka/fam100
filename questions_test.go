@@ -3,7 +3,7 @@ package fam100
 import "testing"
 
 func TestGetQuestion(t *testing.T) {
-	q, err := GetQuestion(1)
+	q, err := GetQuestion("1")
 	if err != nil {
 		t.Error(err)
 	}

@@ -13,7 +13,7 @@ import (
 )
 
 func TestMain(m *testing.M) {
-	if err := fam100.LoadQuestion("fam100.db"); err != nil {
+	if err := fam100.InitQuestion("fam100.db"); err != nil {
 		panic(err)
 	}
 	if err := fam100.DefaultDB.Init(); err != nil {
