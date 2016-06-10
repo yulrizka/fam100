@@ -138,7 +138,7 @@ func (g *Game) Start() {
 		for i := 1; i <= RoundPerGame; i++ {
 			err := g.startRound(i)
 			if err != nil {
-				log.Error("starting round", zap.String("ChanID", g.ChanID))
+				log.Error("starting round failed", zap.String("ChanID", g.ChanID), zap.Error(err))
 			}
 			final := i == RoundPerGame
 			g.Out <- RankMessage{ChanID: g.ChanID, Round: i, Rank: g.rank, Final: final}

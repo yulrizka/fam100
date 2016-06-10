@@ -36,8 +36,10 @@ func main() {
 	if key == "" {
 		log.Fatal("TELEGRAM_KEY can not be empty")
 	}
-	if err := fam100.InitQuestion("fam100.db"); err != nil {
+	if n, err := fam100.InitQuestion("fam100.db"); err != nil {
 		log.Fatal("Failed loading question DB", zap.Error(err))
+	} else {
+		log.Info("Question loaded", zap.Int("nQuestion", n))
 	}
 	if err := fam100.DefaultDB.Init(); err != nil {
 		log.Fatal("Failed loading DB", zap.Error(err))

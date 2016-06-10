@@ -13,7 +13,7 @@ import (
 )
 
 func TestMain(m *testing.M) {
-	if err := fam100.InitQuestion("fam100.db"); err != nil {
+	if _, err := fam100.InitQuestion("../test.db"); err != nil {
 		panic(err)
 	}
 	if err := fam100.DefaultDB.Init(); err != nil {
@@ -118,7 +118,6 @@ func TestQuorumShouldStartGame(t *testing.T) {
 		}
 
 		question := g.game.CurrentQuestion()
-
 		for _, ans := range question.Answers {
 			in <- &bot.Message{
 				From: players[rand.Intn(len(players))],

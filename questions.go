@@ -15,7 +15,7 @@ import (
 var (
 	// DB question database
 	DB             *bolt.DB
-	questionSize   int
+	QuestionSize   int
 	questionBucket = []byte("questions")
 )
 
@@ -32,6 +32,39 @@ type answer struct {
 	Score int
 }
 
+func InitQuestion(dbPath string) (numQuestion int, err error) {
+	DB, err = bolt.Open(dbPath, 0600, nil)
+	if err != nil {
+		log.Panic("error opening bolt db", zap.Error(err))
+	}
+	err = DB.Update(func(tx *bolt.Tx) error {
+		_, err := tx.CreateBucketIfNotExists(questionBucket)
+		if err != nil {
+			return fmt.Errorf("create bucket: %s", err)
+		}
+		return nil
+	})
+	if err != nil {
+		return 0, err
+	}
+
+	err = DB.View(func(tx *bolt.Tx) error {
+		b := tx.Bucket(questionBucket)
+		stats := b.Stats()
+		QuestionSize = stats.KeyN
+		return nil
+	})
+	if err != nil {
+		return 0, err
+	}
+
+	if QuestionSize == 0 {
+		return 0, fmt.Errorf("Loaded 0 questions")
+	}
+
+	return QuestionSize, nil
+}
+
 func (a answer) String() string {
 	if len(a.Text) == 1 {
 		return a.Text[0]
@@ -45,32 +78,6 @@ func (a answer) String() string {
 		b.WriteString(text)
 	}
 	return b.String()
-}
-
-func InitQuestion(dbPath string) error {
-	var err error
-	DB, err = bolt.Open(dbPath, 0600, nil)
-	if err != nil {
-		log.DFatal("error opening bolt db", zap.Error(err))
-	}
-	err = DB.Update(func(tx *bolt.Tx) error {
-		_, err := tx.CreateBucketIfNotExists(questionBucket)
-		if err != nil {
-			return fmt.Errorf("create bucket: %s", err)
-		}
-		return nil
-	})
-	if err != nil {
-		return err
-	}
-
-	err = DB.View(func(tx *bolt.Tx) error {
-		b := tx.Bucket(questionBucket)
-		stats := b.Stats()
-		questionSize = stats.KeyN
-		return nil
-	})
-	return err
 }
 
 func AddQuestion(q Question) error {
@@ -124,8 +131,8 @@ func (q Question) checkAnswer(text string) (correct bool, score, index int) {
 // numbers of game played for particular seed key
 func NextQuestion(seed int64, played int) (q Question, err error) {
 	r := rand.New(rand.NewSource(seed))
-	order := r.Perm(questionSize)
-	id := order[played%questionSize]
+	order := r.Perm(QuestionSize)
+	id := order[played%QuestionSize]+1 // order is 0 based
 	idStr := strconv.FormatInt(int64(id), 10)
 
 	return GetQuestion(idStr)
