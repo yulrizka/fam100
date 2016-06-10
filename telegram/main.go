@@ -29,6 +29,7 @@ var (
 
 func init() {
 	log = zap.NewJSON()
+	zap.AddCaller()
 }
 
 func main() {
@@ -36,7 +37,11 @@ func main() {
 	if key == "" {
 		log.Fatal("TELEGRAM_KEY can not be empty")
 	}
-	if n, err := fam100.InitQuestion("fam100.db"); err != nil {
+	dbPath := "fam100.db"
+	if path := os.Getenv("QUESTION_DB_PATH"); path != "" {
+		dbPath = path
+	}
+	if n, err := fam100.InitQuestion(dbPath); err != nil {
 		log.Fatal("Failed loading question DB", zap.Error(err))
 	} else {
 		log.Info("Question loaded", zap.Int("nQuestion", n))
