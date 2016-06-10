@@ -1,9 +1,10 @@
 package fam100
 
 import (
-	"log"
 	"sort"
 	"time"
+
+	"github.com/uber-go/zap"
 )
 
 var (
@@ -12,7 +13,16 @@ var (
 	DelayBetweenRound    = 5 * time.Second
 	TickAfterWrongAnswer = false
 	RoundPerGame         = 3
+	log                  zap.Logger
 )
+
+func init() {
+	log = zap.NewJSON()
+}
+
+func SetLogger(l zap.Logger) {
+	log = l
+}
 
 // Message to communitace between player and the game
 type Message interface{}
@@ -128,7 +138,7 @@ func (g *Game) Start() {
 		for i := 1; i <= RoundPerGame; i++ {
 			err := g.startRound(i)
 			if err != nil {
-				log.Printf("ERROR starting round")
+				log.Error("starting round", zap.String("ChanID", g.ChanID))
 			}
 			final := i == RoundPerGame
 			g.Out <- RankMessage{ChanID: g.ChanID, Round: i, Rank: g.rank, Final: final}
@@ -138,7 +148,10 @@ func (g *Game) Start() {
 		}
 		g.Out <- StateMessage{ChanID: g.ChanID, State: Finished}
 	}()
-	log.Printf("Started game channel:%s, seed:%d, totalRoundPlayed:%d", g.ChanID, g.seed, g.TotalRoundPlayed)
+	log.Info("Game started",
+		zap.String("channel", g.ChanID),
+		zap.Int64("seed", g.seed),
+		zap.Int("totalRoundPlayed", g.TotalRoundPlayed))
 }
 
 func (g *Game) startRound(currentRound int) error {
@@ -154,19 +167,15 @@ func (g *Game) startRound(currentRound int) error {
 	timeLeftTick := time.NewTicker(tickDuration)
 
 	// print question
-	g.Out <- StateMessage{
-		ChanID:    g.ChanID,
-		State:     RoundStarted,
-		Round:     currentRound,
-		RoundText: r.questionText(g.ChanID, false),
-	}
+	g.Out <- StateMessage{ChanID: g.ChanID, State: RoundStarted, Round: currentRound, RoundText: r.questionText(g.ChanID, false)}
+	log.Info("Round Started", zap.String("ChanID", g.ChanID))
 
 	for {
 		select {
 		case rawMsg := <-g.In: // new answer coming from player
 			msg, ok := rawMsg.(TextMessage)
 			if !ok {
-				log.Printf("ERROR Unexpected message type input from client")
+				log.Error("Unexpected message type input from client")
 				continue
 			}
 			answer := msg.Text
@@ -181,10 +190,11 @@ func (g *Game) startRound(currentRound int) error {
 			// show correct answer
 			g.Out <- r.questionText(g.ChanID, false)
 			if r.finised() {
+				timeLeftTick.Stop()
 				r.state = RoundFinished
 				g.updateRanking(r.ranking())
 				g.Out <- StateMessage{ChanID: g.ChanID, State: RoundFinished, Round: currentRound}
-				timeLeftTick.Stop()
+				log.Info("Round finished", zap.String("ChanID", g.ChanID), zap.Bool("timeout", false))
 				return nil
 			}
 		case <-timeLeftTick.C: // inform time left
@@ -197,6 +207,7 @@ func (g *Game) startRound(currentRound int) error {
 			g.State = RoundFinished
 			g.updateRanking(r.ranking())
 			g.Out <- StateMessage{ChanID: g.ChanID, State: RoundTimeout, Round: currentRound}
+			log.Info("Round finished", zap.String("ChanID", g.ChanID), zap.Bool("timeout", true))
 			showUnAnswered := true
 			g.Out <- r.questionText(g.ChanID, showUnAnswered)
 			return nil
@@ -241,6 +252,8 @@ func (r *round) timeLeft() time.Duration {
 	return r.endAt.Sub(time.Now().Round(time.Second))
 }
 
+// questionText construct RoundTextMessage which contains questions and answers
+// and score
 func (r *round) questionText(gameID string, showUnAnswered bool) RoundTextMessage {
 	ras := make([]roundAnswers, len(r.q.Answers))
 
@@ -279,6 +292,7 @@ func (r *round) finised() bool {
 	return answered == len(r.q.Answers)
 }
 
+// ranking generate a rank for current round which contain player answers and score
 func (r *round) ranking() rank {
 	var roundScores rank
 	lookup := make(map[PlayerID]playerScore)
@@ -322,6 +336,11 @@ func (r *round) answer(p Player, text string) (correct, answered bool, index int
 		}
 		r.correct[i] = p.ID
 		r.players[p.ID] = p
+		log.Info("answer correct",
+			zap.String("playerID", string(p.ID)),
+			zap.String("playerName", p.Name),
+			zap.String("answer", text),
+			zap.Int("questionID", r.q.ID))
 
 		return correct, false, i
 	}

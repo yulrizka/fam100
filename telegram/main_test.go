@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/uber-go/zap"
 	"github.com/yulrizka/bot"
 	"github.com/yulrizka/fam100"
 )
@@ -25,6 +26,13 @@ func TestMain(m *testing.M) {
 }
 
 func TestQuorumShouldStartGame(t *testing.T) {
+	oMinQuorum := minQuorum
+	defer func() {
+		minQuorum = oMinQuorum
+	}()
+	minQuorum = 2
+	log.SetLevel(zap.ErrorLevel)
+	fam100.SetLogger(log)
 	// create a new game
 	out := make(chan bot.Message)
 	b := fam100Bot{}

@@ -4,17 +4,18 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
-	"log"
 	"os"
 	"time"
 
 	"golang.org/x/net/context"
 
+	"github.com/uber-go/zap"
 	"github.com/yulrizka/bot"
 	"github.com/yulrizka/fam100"
 )
 
 var (
+	log                  zap.Logger
 	minQuorum            = 3 // minimum players to start game
 	quorumWait           = 120 * time.Second
 	telegramInBufferSize = 10000
@@ -27,25 +28,25 @@ var (
 )
 
 func init() {
-	log.SetFlags(log.Ldate | log.Ltime | log.Lmicroseconds | log.Lshortfile)
+	log = zap.NewJSON()
 }
 
 func main() {
 	key := os.Getenv("TELEGRAM_KEY")
 	if key == "" {
-		panic("TELEGRAM_KEY can not be empty")
+		log.Fatal("TELEGRAM_KEY can not be empty")
 	}
 	if err := fam100.LoadQuestion("fam100.db"); err != nil {
-		panic(err)
+		log.Fatal("Failed loading question DB", zap.Error(err))
 	}
 	if err := fam100.DefaultDB.Init(); err != nil {
-		panic(err)
+		log.Fatal("Failed loading DB", zap.Error(err))
 	}
 	startedAt = time.Now()
 	telegram := bot.NewTelegram(key)
 	plugin := fam100Bot{}
 	if err := telegram.AddPlugin(&plugin); err != nil {
-		panic(err)
+		log.Fatal("Failed AddPlugin", zap.Error(err))
 	}
 	plugin.start()
 
@@ -152,7 +153,7 @@ func (m *fam100Bot) handleInbox() {
 					quorumPlayer := map[string]bool{msg.From.ID: true}
 					game, err := fam100.NewGame(chanID, m.gameIn, m.gameOut)
 					if err != nil {
-						log.Printf("ERROR creating a new game")
+						log.Error("creating a game", zap.String("chanID", chanID))
 						continue
 					}
 
@@ -166,8 +167,8 @@ func (m *fam100Bot) handleInbox() {
 						quorumWait,
 					)
 					m.out <- bot.Message{Chat: bot.Chat{ID: chanID, Type: bot.Group}, Text: text, Format: bot.Markdown}
+					log.Info("User joined", zap.String("playerID", msg.From.ID), zap.String("chanID", chanID))
 					continue
-
 				} else {
 					if ch.game.State != fam100.Created || ch.quorumPlayer[msg.From.ID] {
 						continue
@@ -186,6 +187,7 @@ func (m *fam100Bot) handleInbox() {
 						quorumWait,
 					)
 					m.out <- bot.Message{Chat: bot.Chat{ID: chanID, Type: bot.Group}, Text: text, Format: bot.Markdown}
+					log.Info("User joined", zap.String("playerID", msg.From.ID), zap.String("chanID", chanID))
 				}
 			}
 
@@ -199,6 +201,7 @@ func (m *fam100Bot) handleInbox() {
 					delete(ch.quorumPlayer, msg.From.ID)
 					text := fmt.Sprintf(fam100.T("*%s* OK,  😞"), msg.From.FullName())
 					m.out <- bot.Message{Chat: bot.Chat{ID: chanID, Type: bot.Group}, Text: text, Format: bot.Markdown}
+					log.Info("User left game", zap.String("playerID", msg.From.ID), zap.String("chanID", chanID))
 				}
 				continue
 			}
@@ -218,6 +221,7 @@ func (m *fam100Bot) handleInbox() {
 			delete(m.channels, chanID)
 			text := fmt.Sprintf(fam100.T("Permainan dibatalkan, jumlah pemain tidak cukup  😞"))
 			m.out <- bot.Message{Chat: bot.Chat{ID: chanID, Type: bot.Group}, Text: text, Format: bot.Markdown}
+			log.Info("Quorum timeout", zap.String("chanID", chanID))
 		}
 	}
 }
