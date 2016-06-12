@@ -24,7 +24,7 @@ func SetLogger(l zap.Logger) {
 	log = l.With(zap.String("module", "fam100"))
 }
 
-// Message to communitace between player and the game
+// Message to communicate between player and the game
 type Message interface{}
 
 // TextMessage represents a chat message
@@ -48,7 +48,7 @@ type TickMessage struct {
 	TimeLeft time.Duration
 }
 
-// RoundTextMessage represents question and answer for this round
+// QNAMessage represents question and answer for a round
 type QNAMessage struct {
 	ChanID         string
 	Round          int
@@ -85,7 +85,7 @@ type Player struct {
 // State represents state of the round
 type State string
 
-// RoundState Kind
+// Available state
 const (
 	Created       State = "created"
 	Started       State = "started"
@@ -95,8 +95,8 @@ const (
 	RoundFinished State = "roundFinished"
 )
 
-// Game can consist of multiple round
-// each round user will be asked question and gain ponint
+// Game can consists of multiple round
+// each round user will be asked question and gain points
 type Game struct {
 	ChanID           string
 	State            State
@@ -111,8 +111,6 @@ type Game struct {
 }
 
 // NewGame create a new round
-// Seed and totalRoundPlayed determine the random order of question
-// Seed can be any number, for example unix timestamp
 func NewGame(id string, in, out chan Message) (r *Game, err error) {
 	seed, totalRoundPlayed, err := DefaultDB.nextGame(id)
 	if err != nil {
@@ -140,7 +138,7 @@ func (g *Game) Start() {
 		for i := 1; i <= RoundPerGame; i++ {
 			err := g.startRound(i)
 			if err != nil {
-				log.Error("starting round failed", zap.String("ChanID", g.ChanID), zap.Error(err))
+				log.Error("starting round failed", zap.String("chanID", g.ChanID), zap.Error(err))
 			}
 			final := i == RoundPerGame
 			g.Out <- RankMessage{ChanID: g.ChanID, Round: i, Rank: g.rank, Final: final}
@@ -175,7 +173,7 @@ func (g *Game) startRound(currentRound int) error {
 
 	// print question
 	g.Out <- StateMessage{ChanID: g.ChanID, State: RoundStarted, Round: currentRound, RoundText: r.questionText(g.ChanID, false)}
-	log.Info("Round Started", zap.String("ChanID", g.ChanID))
+	log.Info("Round Started", zap.String("chanID", g.ChanID))
 
 	for {
 		select {
@@ -207,7 +205,7 @@ func (g *Game) startRound(currentRound int) error {
 				r.state = RoundFinished
 				g.updateRanking(r.ranking())
 				g.Out <- StateMessage{ChanID: g.ChanID, State: RoundFinished, Round: currentRound}
-				log.Info("Round finished", zap.String("ChanID", g.ChanID), zap.Bool("timeout", false))
+				log.Info("Round finished", zap.String("chanID", g.ChanID), zap.Bool("timeout", false))
 				DefaultDB.incStats("round_finished")
 				DefaultDB.incChannelStats(g.ChanID, "round_finished")
 				return nil
@@ -222,7 +220,7 @@ func (g *Game) startRound(currentRound int) error {
 			g.State = RoundFinished
 			g.updateRanking(r.ranking())
 			g.Out <- StateMessage{ChanID: g.ChanID, State: RoundTimeout, Round: currentRound}
-			log.Info("Round finished", zap.String("ChanID", g.ChanID), zap.Bool("timeout", true))
+			log.Info("Round finished", zap.String("chanID", g.ChanID), zap.Bool("timeout", true))
 			showUnAnswered := true
 			g.Out <- r.questionText(g.ChanID, showUnAnswered)
 			DefaultDB.incStats("round_timeout")
@@ -241,7 +239,7 @@ func (g *Game) CurrentQuestion() Question {
 	return g.currentRound.q
 }
 
-// round represents one quesiton round
+// round represents with one question
 type round struct {
 	q       Question
 	state   State
@@ -269,8 +267,7 @@ func (r *round) timeLeft() time.Duration {
 	return r.endAt.Sub(time.Now().Round(time.Second))
 }
 
-// questionText construct RoundTextMessage which contains questions and answers
-// and score
+// questionText construct QNAMessage which contains questions, answers and score
 func (r *round) questionText(gameID string, showUnAnswered bool) QNAMessage {
 	ras := make([]roundAnswers, len(r.q.Answers))
 
@@ -309,7 +306,7 @@ func (r *round) finised() bool {
 	return answered == len(r.q.Answers)
 }
 
-// ranking generate a rank for current round which contain player answers and score
+// ranking generates a rank for current round which contains player, answers and score
 func (r *round) ranking() Rank {
 	var roundScores Rank
 	lookup := make(map[PlayerID]playerScore)
