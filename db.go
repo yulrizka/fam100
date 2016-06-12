@@ -102,7 +102,7 @@ func (r *RedisDB) incRoundPlayed(chanID string) error {
 	return r.incChannelStats(chanID, "played")
 }
 
-func (r RedisDB) saveScore(chanID string, scores rank) error {
+func (r RedisDB) saveScore(chanID string, scores Rank) error {
 	for _, score := range scores {
 		r.conn.Send("HSET", pNameKey, score.PlayerID, score.Name)
 		r.conn.Send("ZINCRBY", pRankKey, score.Score, score.PlayerID)
@@ -111,15 +111,15 @@ func (r RedisDB) saveScore(chanID string, scores rank) error {
 	return r.conn.Flush()
 }
 
-func (r RedisDB) channelRanking(chanID string, limit int) (ranking rank, err error) {
+func (r RedisDB) ChannelRanking(chanID string, limit int) (ranking Rank, err error) {
 	return r.getRanking(cRankKey+chanID, limit)
 }
 
-func (r RedisDB) playerRanking(limit int) (rank, error) {
+func (r RedisDB) playerRanking(limit int) (Rank, error) {
 	return r.getRanking(pRankKey, limit)
 }
 
-func (r RedisDB) getRanking(key string, limit int) (ranking rank, err error) {
+func (r RedisDB) getRanking(key string, limit int) (ranking Rank, err error) {
 	values, err := redis.Values(r.conn.Do("ZREVRANGE", key, 0, limit, "WITHSCORES"))
 	if err != nil {
 		return nil, err
@@ -141,12 +141,14 @@ func (r RedisDB) getRanking(key string, limit int) (ranking rank, err error) {
 	}
 
 	// get all name
-	names, err := redis.Strings(r.conn.Do("HMGET", ids...))
-	if err != nil {
-		return nil, err
-	}
-	for i := range ranking {
-		ranking[i].Name = names[i]
+	if len(ranking) > 0 {
+		names, err := redis.Strings(r.conn.Do("HMGET", ids...))
+		if err != nil {
+			return nil, err
+		}
+		for i := range ranking {
+			ranking[i].Name = names[i]
+		}
 	}
 
 	return ranking, nil

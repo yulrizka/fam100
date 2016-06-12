@@ -3,7 +3,7 @@ package fam100
 import "testing"
 
 func TestSaveScore(t *testing.T) {
-	ranking := rank{
+	ranking := Rank{
 		{PlayerID: "ID1", Name: "Name 1", Score: 15},
 		{PlayerID: "ID2", Name: "Name 2", Score: 14},
 		{PlayerID: "ID3", Name: "Name 3", Score: 13},
@@ -18,7 +18,7 @@ func TestSaveScore(t *testing.T) {
 	}
 
 	// test ranking in specific channel
-	chanRank, err := DefaultDB.channelRanking(chanID, 100)
+	chanRank, err := DefaultDB.ChannelRanking(chanID, 100)
 	if err != nil {
 		t.Error(err)
 	}

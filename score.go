@@ -9,13 +9,13 @@ type playerScore struct {
 	Position int
 }
 
-type rank []playerScore
+type Rank []playerScore
 
-func (r rank) Len() int           { return len(r) }
-func (r rank) Swap(i, j int)      { r[i], r[j] = r[j], r[i] }
-func (r rank) Less(i, j int) bool { return r[i].Score > r[j].Score }
+func (r Rank) Len() int           { return len(r) }
+func (r Rank) Swap(i, j int)      { r[i], r[j] = r[j], r[i] }
+func (r Rank) Less(i, j int) bool { return r[i].Score > r[j].Score }
 
-func (r rank) add(source rank) rank {
+func (r Rank) add(source Rank) Rank {
 	lookup := make(map[PlayerID]playerScore)
 	for _, v := range r {
 		lookup[v.PlayerID] = v
@@ -31,7 +31,7 @@ func (r rank) add(source rank) rank {
 		}
 	}
 
-	result := make(rank, 0, len(lookup))
+	result := make(Rank, 0, len(lookup))
 	for _, v := range lookup {
 		result = append(result, v)
 	}

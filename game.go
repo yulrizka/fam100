@@ -69,7 +69,7 @@ type roundAnswers struct {
 type RankMessage struct {
 	ChanID string
 	Round  int
-	Rank   rank
+	Rank   Rank
 	Final  bool
 }
 
@@ -103,7 +103,7 @@ type Game struct {
 	TotalRoundPlayed int
 	players          map[PlayerID]Player
 	seed             int64
-	rank             rank
+	rank             Rank
 	currentRound     *round
 
 	In  chan Message
@@ -232,7 +232,7 @@ func (g *Game) startRound(currentRound int) error {
 	}
 }
 
-func (g *Game) updateRanking(r rank) {
+func (g *Game) updateRanking(r Rank) {
 	g.rank = g.rank.add(r)
 	DefaultDB.saveScore(g.ChanID, r)
 }
@@ -310,8 +310,8 @@ func (r *round) finised() bool {
 }
 
 // ranking generate a rank for current round which contain player answers and score
-func (r *round) ranking() rank {
-	var roundScores rank
+func (r *round) ranking() Rank {
+	var roundScores Rank
 	lookup := make(map[PlayerID]playerScore)
 	for i, pID := range r.correct {
 		if pID != "" {

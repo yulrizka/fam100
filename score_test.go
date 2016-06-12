@@ -3,9 +3,9 @@ package fam100
 import "testing"
 
 func TestAdd(t *testing.T) {
-	r1 := make(rank, 1)
+	r1 := make(Rank, 1)
 	r1[0] = playerScore{PlayerID: "a", Score: 1}
-	r2 := make(rank, 2)
+	r2 := make(Rank, 2)
 	r2[0] = playerScore{PlayerID: "a", Score: 2}
 	r2[1] = playerScore{PlayerID: "b", Score: 4}
 
