@@ -16,6 +16,9 @@ var (
 	QuestionDB     *bolt.DB
 	questionSize   int
 	questionBucket = []byte("questions")
+
+	// Add to the existing seed
+	ExtraQuestionSeed = int64(0)
 )
 
 // Question for a round
@@ -129,7 +132,7 @@ func (q Question) checkAnswer(text string) (correct bool, score, index int) {
 // NextQuestion generates next question randomly by taking into account
 // numbers of game played for particular seed key
 func NextQuestion(seed int64, played int) (q Question, err error) {
-	r := rand.New(rand.NewSource(seed))
+	r := rand.New(rand.NewSource(seed + ExtraQuestionSeed))
 	order := r.Perm(questionSize)
 	id := order[played%questionSize] + 1 // order is 0 based
 	idStr := strconv.FormatInt(int64(id), 10)
