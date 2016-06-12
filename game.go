@@ -8,7 +8,7 @@ import (
 )
 
 var (
-	roundDuration        = 60 * time.Second
+	RoundDuration        = 60 * time.Second
 	tickDuration         = 10 * time.Second
 	DelayBetweenRound    = 5 * time.Second
 	TickAfterWrongAnswer = false
@@ -170,7 +170,7 @@ func (g *Game) startRound(currentRound int) error {
 
 	g.currentRound = r
 	r.state = RoundStarted
-	timeUp := time.After(roundDuration)
+	timeUp := time.After(RoundDuration)
 	timeLeftTick := time.NewTicker(tickDuration)
 
 	// print question
@@ -261,7 +261,7 @@ func newRound(seed int64, totalRoundPlayed int, players map[PlayerID]Player) (*r
 		correct: make([]PlayerID, len(q.Answers)),
 		state:   Created,
 		players: players,
-		endAt:   time.Now().Add(roundDuration).Round(time.Second),
+		endAt:   time.Now().Add(RoundDuration).Round(time.Second),
 	}, nil
 }
 

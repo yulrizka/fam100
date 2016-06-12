@@ -37,6 +37,7 @@ var (
 func init() {
 	log = zap.NewJSON(zap.AddCaller(), zap.AddStacks(zap.FatalLevel))
 	fam100.ExtraQuestionSeed = 1
+	fam100.RoundDuration = 90 * time.Second
 }
 
 func main() {
