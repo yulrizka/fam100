@@ -26,6 +26,7 @@ type Question struct {
 	ID      int
 	Text    string
 	Answers []answer
+	lookup  map[string]int
 }
 
 type answer struct {
@@ -109,6 +110,13 @@ func GetQuestion(id string) (q Question, err error) {
 			return err
 		}
 
+		q.lookup = make(map[string]int)
+		for i, ans := range q.Answers {
+			for _, text := range ans.Text {
+				q.lookup[text] = i
+			}
+		}
+
 		return nil
 	})
 	return q, err
@@ -117,13 +125,8 @@ func GetQuestion(id string) (q Question, err error) {
 // check answers gives the score for particular answer to a question
 func (q Question) checkAnswer(text string) (correct bool, score, index int) {
 	text = strings.TrimSpace(strings.ToLower(text))
-
-	for i, ans := range q.Answers {
-		for _, ansText := range ans.Text {
-			if text == ansText {
-				return true, ans.Score, i
-			}
-		}
+	if i, ok := q.lookup[text]; ok {
+		return true, q.Answers[i].Score, i
 	}
 
 	return false, 0, -1

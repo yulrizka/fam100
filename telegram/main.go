@@ -261,6 +261,7 @@ func (b *fam100Bot) handleScore(msg *bot.Message) bool {
 func (b *fam100Bot) handleChannelMigration(msg *bot.ChannelMigratedMessage) bool {
 	chanID := msg.Chat.ID
 	if ch, exists := b.channels[chanID]; exists {
+		// TODO migrate channel score
 		newID := msg.ToID
 		ch.ID = newID
 		ch.game.ChanID = newID
