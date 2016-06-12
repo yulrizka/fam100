@@ -302,7 +302,7 @@ func (b *fam100Bot) handleOutbox() {
 					b.out <- bot.Message{Chat: bot.Chat{ID: msg.ChanID}, Text: text, Format: bot.Markdown}
 				}
 
-			case fam100.RoundTextMessage:
+			case fam100.QNAMessage:
 				text := formatRoundText(msg)
 				b.out <- bot.Message{Chat: bot.Chat{ID: msg.ChanID}, Text: text, Format: bot.HTML}
 
@@ -365,7 +365,7 @@ func (c *channel) startQuorumTimer(wait time.Duration, out chan bot.Message) {
 	}()
 }
 
-func formatRoundText(msg fam100.RoundTextMessage) string {
+func formatRoundText(msg fam100.QNAMessage) string {
 	var b bytes.Buffer
 	w := bufio.NewWriter(&b)
 

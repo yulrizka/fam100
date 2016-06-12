@@ -39,7 +39,7 @@ type StateMessage struct {
 	ChanID    string
 	Round     int
 	State     State
-	RoundText RoundTextMessage
+	RoundText QNAMessage //question and answer
 }
 
 // TickMessage represents time left notification
@@ -49,7 +49,7 @@ type TickMessage struct {
 }
 
 // RoundTextMessage represents question and answer for this round
-type RoundTextMessage struct {
+type QNAMessage struct {
 	ChanID         string
 	Round          int
 	QuestionText   string
@@ -271,7 +271,7 @@ func (r *round) timeLeft() time.Duration {
 
 // questionText construct RoundTextMessage which contains questions and answers
 // and score
-func (r *round) questionText(gameID string, showUnAnswered bool) RoundTextMessage {
+func (r *round) questionText(gameID string, showUnAnswered bool) QNAMessage {
 	ras := make([]roundAnswers, len(r.q.Answers))
 
 	for i, ans := range r.q.Answers {
@@ -286,7 +286,7 @@ func (r *round) questionText(gameID string, showUnAnswered bool) RoundTextMessag
 		ras[i] = ra
 	}
 
-	msg := RoundTextMessage{
+	msg := QNAMessage{
 		ChanID:         gameID,
 		QuestionText:   r.q.Text,
 		QuestionID:     r.q.ID,
