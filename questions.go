@@ -9,13 +9,12 @@ import (
 	"strings"
 
 	"github.com/boltdb/bolt"
-	"github.com/uber-go/zap"
 )
 
 var (
 	// DB question database
-	DB             *bolt.DB
-	QuestionSize   int
+	QuestionDB     *bolt.DB
+	questionSize   int
 	questionBucket = []byte("questions")
 )
 
@@ -33,11 +32,11 @@ type answer struct {
 }
 
 func InitQuestion(dbPath string) (numQuestion int, err error) {
-	DB, err = bolt.Open(dbPath, 0600, nil)
+	QuestionDB, err = bolt.Open(dbPath, 0600, nil)
 	if err != nil {
-		log.Panic("error opening bolt db", zap.Error(err))
+		return 0, err
 	}
-	err = DB.Update(func(tx *bolt.Tx) error {
+	err = QuestionDB.Update(func(tx *bolt.Tx) error {
 		_, err := tx.CreateBucketIfNotExists(questionBucket)
 		if err != nil {
 			return fmt.Errorf("create bucket: %s", err)
@@ -48,21 +47,21 @@ func InitQuestion(dbPath string) (numQuestion int, err error) {
 		return 0, err
 	}
 
-	err = DB.View(func(tx *bolt.Tx) error {
+	err = QuestionDB.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket(questionBucket)
 		stats := b.Stats()
-		QuestionSize = stats.KeyN
+		questionSize = stats.KeyN
 		return nil
 	})
 	if err != nil {
 		return 0, err
 	}
 
-	if QuestionSize == 0 {
+	if questionSize == 0 {
 		return 0, fmt.Errorf("Loaded 0 questions")
 	}
 
-	return QuestionSize, nil
+	return questionSize, nil
 }
 
 func (a answer) String() string {
@@ -87,7 +86,7 @@ func AddQuestion(q Question) error {
 		return err
 	}
 
-	DB.Update(func(tx *bolt.Tx) error {
+	QuestionDB.Update(func(tx *bolt.Tx) error {
 		b := tx.Bucket(questionBucket)
 		id := strconv.FormatInt(int64(q.ID), 10)
 		err := b.Put([]byte(id), buff.Bytes())
@@ -97,7 +96,7 @@ func AddQuestion(q Question) error {
 }
 
 func GetQuestion(id string) (q Question, err error) {
-	err = DB.View(func(tx *bolt.Tx) error {
+	err = QuestionDB.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket(questionBucket)
 		v := b.Get([]byte(id))
 
@@ -131,8 +130,8 @@ func (q Question) checkAnswer(text string) (correct bool, score, index int) {
 // numbers of game played for particular seed key
 func NextQuestion(seed int64, played int) (q Question, err error) {
 	r := rand.New(rand.NewSource(seed))
-	order := r.Perm(QuestionSize)
-	id := order[played%QuestionSize]+1 // order is 0 based
+	order := r.Perm(questionSize)
+	id := order[played%questionSize] + 1 // order is 0 based
 	idStr := strconv.FormatInt(int64(id), 10)
 
 	return GetQuestion(idStr)

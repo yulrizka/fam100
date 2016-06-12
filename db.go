@@ -10,17 +10,20 @@ import (
 var (
 	redisPrefix = "fam100"
 
-	channelKey, channelRankKey, playerKey, playerRankKey string
+	gStatsKey, cStatsKey, pStatsKey, cRankKey, pNameKey, pRankKey string
 )
 
 var DefaultDB RedisDB
 
 func SetPrefix(prefix string) {
 	redisPrefix = prefix
-	channelKey = fmt.Sprintf("%s_channel_", redisPrefix)
-	channelRankKey = fmt.Sprintf("%s_chan_rank_", redisPrefix)
-	playerKey = fmt.Sprintf("%s_players", redisPrefix)
-	playerRankKey = fmt.Sprintf("%s_player_rank", redisPrefix)
+	// g: global, c: channel, p:player
+	gStatsKey = fmt.Sprintf("%s_stats_", redisPrefix)
+	cStatsKey = fmt.Sprintf("%s_chan_stats_", redisPrefix)
+	pStatsKey = fmt.Sprintf("%s_player_stats_", redisPrefix)
+	cRankKey = fmt.Sprintf("%s_chan_rank_", redisPrefix)
+	pNameKey = fmt.Sprintf("%s_player_name", redisPrefix)
+	pRankKey = fmt.Sprintf("%s_player_rank", redisPrefix)
 }
 
 type RedisDB struct {
@@ -44,7 +47,7 @@ func (r *RedisDB) Init() (err error) {
 
 func (r *RedisDB) nextGame(chanID string) (seed int64, nextRound int, err error) {
 	seed = int64(crc32.ChecksumIEEE([]byte(chanID)))
-	v, err := r.conn.Do("GET", channelKey+chanID)
+	v, err := r.channelStats(chanID, "played")
 	if err != nil {
 		return 0, 0, err
 	}
@@ -59,27 +62,61 @@ func (r *RedisDB) nextGame(chanID string) (seed int64, nextRound int, err error)
 	return seed, nextRound + 1, nil
 }
 
-func (r *RedisDB) incRoundPlayed(chanID string) error {
-	_, err := r.conn.Do("INCR", channelKey+chanID)
+func (r RedisDB) incStats(key string) error {
+	rkey := fmt.Sprintf("%s%s", gStatsKey, key)
+	_, err := r.conn.Do("INCR", rkey)
 
 	return err
 }
 
+func (r RedisDB) incChannelStats(chanID, key string) error {
+	rkey := fmt.Sprintf("%s%s_%s", cStatsKey, key, chanID)
+	_, err := r.conn.Do("INCR", rkey)
+
+	return err
+}
+
+func (r RedisDB) incPlayerStats(playerID PlayerID, key string) error {
+	rkey := fmt.Sprintf("%s%s_%s", pStatsKey, key, playerID)
+	_, err := r.conn.Do("INCR", rkey)
+
+	return err
+}
+
+func (r RedisDB) stats(key string) (interface{}, error) {
+	rkey := fmt.Sprintf("%s%s", gStatsKey, key)
+	return r.conn.Do("GET", rkey)
+}
+
+func (r RedisDB) channelStats(chanID, key string) (interface{}, error) {
+	rkey := fmt.Sprintf("%s%s_%s", cStatsKey, key, chanID)
+	return r.conn.Do("GET", rkey)
+}
+
+func (r RedisDB) playerStats(playerID, key string) (interface{}, error) {
+	rkey := fmt.Sprintf("%s%s_%s", pStatsKey, key, playerID)
+	return r.conn.Do("GET", rkey)
+}
+
+func (r *RedisDB) incRoundPlayed(chanID string) error {
+	return r.incChannelStats(chanID, "played")
+}
+
 func (r RedisDB) saveScore(chanID string, scores rank) error {
 	for _, score := range scores {
-		r.conn.Send("HSET", playerKey, score.PlayerID, score.Name)
-		r.conn.Send("ZINCRBY", playerRankKey, score.Score, score.PlayerID)
-		r.conn.Send("ZINCRBY", channelRankKey+chanID, score.Score, score.PlayerID)
+		r.conn.Send("HSET", pNameKey, score.PlayerID, score.Name)
+		r.conn.Send("ZINCRBY", pRankKey, score.Score, score.PlayerID)
+		r.conn.Send("ZINCRBY", cRankKey+chanID, score.Score, score.PlayerID)
 	}
 	return r.conn.Flush()
 }
 
 func (r RedisDB) channelRanking(chanID string, limit int) (ranking rank, err error) {
-	return r.getRanking(channelRankKey+chanID, limit)
+	return r.getRanking(cRankKey+chanID, limit)
 }
 
 func (r RedisDB) playerRanking(limit int) (rank, error) {
-	return r.getRanking(playerRankKey, limit)
+	return r.getRanking(pRankKey, limit)
 }
 
 func (r RedisDB) getRanking(key string, limit int) (ranking rank, err error) {
@@ -89,7 +126,7 @@ func (r RedisDB) getRanking(key string, limit int) (ranking rank, err error) {
 	}
 
 	ids := make([]interface{}, 0, len(values))
-	ids = append(ids, playerKey)
+	ids = append(ids, pNameKey)
 	pos := 0
 	for len(values) > 0 {
 		var ps playerScore
@@ -116,16 +153,16 @@ func (r RedisDB) getRanking(key string, limit int) (ranking rank, err error) {
 }
 
 func (r RedisDB) playerScore(playerID PlayerID) (ps playerScore, err error) {
-	return r.getScore(playerRankKey, playerID)
+	return r.getScore(pRankKey, playerID)
 }
 
 func (r RedisDB) playerChannelScore(chanID string, playerID PlayerID) (playerScore, error) {
-	return r.getScore(channelRankKey+chanID, playerID)
+	return r.getScore(cRankKey+chanID, playerID)
 }
 
 func (r RedisDB) getScore(key string, playerID PlayerID) (ps playerScore, err error) {
 	ps.PlayerID = playerID
-	if ps.Name, err = redis.String(r.conn.Do("HGET", playerKey, playerID)); err != nil {
+	if ps.Name, err = redis.String(r.conn.Do("HGET", pNameKey, playerID)); err != nil {
 		return ps, err
 	}
 	if ps.Score, err = redis.Int(r.conn.Do("ZSCORE", key, playerID)); err != nil {

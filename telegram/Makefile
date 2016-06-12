@@ -1,0 +1,11 @@
+BTIME     ?= $(shell date '+%Y%m%d%H%M%S')
+BTIME_H   ?= $(shell date '+%Y-%m-%dT%H:%M:%S')
+VERSION   = $(shell git log --pretty=format:%h --abbrev=10 | head -1)
+GOFLAGS   = GOOS=$(GOOS) GOARCH=$(GOARCH)
+GOLDFLAGS += -X main.VERSION=$(VERSION)
+GOLDFLAGS += -X main.BUILDTIME=$(BTIME_H)
+GOOPTS    = -ldflags "$(GOLDFLAGS)"
+
+.PHONY: linux
+linux:
+	@GOOS=linux GOARCH=amd64 go build $(GOOPTS) -o fam100

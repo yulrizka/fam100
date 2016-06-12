@@ -55,7 +55,7 @@ func printHeader() {
 }
 
 func startGame() {
-	fam100.LoadQuestion("fam100.db")
+	fam100.InitQuestion("fam100.db")
 	for {
 		fmt.Printf("Siap ? (y/n) ")
 		ya := []string{"ya", "y", "yes"}

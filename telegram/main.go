@@ -27,8 +27,11 @@ var (
 	gameOutBufferSize    = 10000
 	botName              = "fam100bot"
 	startedAt            time.Time
+	timeoutChan          = make(chan string, 10000)
 
-	timeoutChan = make(chan string, 10000)
+	// compiled information
+	VERSION   = ""
+	BUILDTIME = ""
 )
 
 func init() {
@@ -36,12 +39,15 @@ func init() {
 }
 
 func main() {
-	// setup logger
+	flag.IntVar(&minQuorum, "quorum", 3, "minimal channel quorum")
 	logLevel := zap.LevelFlag("v", zap.InfoLevel, "log level: all, debug, info, warn, error, panic, fatal, none")
 	flag.Parse()
+
+	// setup logger
 	log.SetLevel(*logLevel)
 	bot.SetLogger(log)
 	fam100.SetLogger(log)
+	log.Info("Fam100 STARTED", zap.String("version", VERSION), zap.String("buildtime", BUILDTIME))
 
 	key := os.Getenv("TELEGRAM_KEY")
 	if key == "" {
@@ -60,10 +66,10 @@ func main() {
 	}
 	defer func() {
 		if r := recover(); r != nil {
-			fam100.DB.Close()
+			fam100.QuestionDB.Close()
 			panic(r)
 		}
-		fam100.DB.Close()
+		fam100.QuestionDB.Close()
 	}()
 
 	if err := fam100.DefaultDB.Init(); err != nil {
@@ -218,6 +224,10 @@ func (b *fam100Bot) handleJoin(msg *bot.Message) bool {
 
 			ch := &channel{ID: chanID, game: game, quorumPlayer: quorumPlayer}
 			b.channels[chanID] = ch
+			if len(ch.quorumPlayer) == minQuorum {
+				ch.game.Start()
+				return true
+			}
 			ch.startQuorumTimer(quorumWait, b.out)
 			text := fmt.Sprintf(
 				fam100.T("*%s* OK, butuh %d orang lagi, sisa waktu %s"),

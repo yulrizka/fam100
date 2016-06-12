@@ -135,6 +135,8 @@ func (g *Game) Start() {
 	g.State = Started
 	go func() {
 		g.Out <- StateMessage{ChanID: g.ChanID, State: Started}
+		DefaultDB.incStats("game_started")
+		DefaultDB.incChannelStats(g.ChanID, "game_started")
 		for i := 1; i <= RoundPerGame; i++ {
 			err := g.startRound(i)
 			if err != nil {
@@ -146,6 +148,8 @@ func (g *Game) Start() {
 				time.Sleep(DelayBetweenRound)
 			}
 		}
+		DefaultDB.incStats("game_finished")
+		DefaultDB.incChannelStats(g.ChanID, "game_finished")
 		g.Out <- StateMessage{ChanID: g.ChanID, State: Finished}
 	}()
 	log.Info("Game started",
@@ -161,6 +165,9 @@ func (g *Game) startRound(currentRound int) error {
 	if err != nil {
 		return err
 	}
+	DefaultDB.incStats("round_started")
+	DefaultDB.incChannelStats(g.ChanID, "round_started")
+
 	g.currentRound = r
 	r.state = RoundStarted
 	timeUp := time.After(roundDuration)
@@ -179,15 +186,21 @@ func (g *Game) startRound(currentRound int) error {
 				continue
 			}
 			answer := msg.Text
-			correct, _, _ := r.answer(msg.Player, answer)
+			correct, alreadyAnswered, _ := r.answer(msg.Player, answer)
 			if !correct {
 				if TickAfterWrongAnswer {
 					g.Out <- TickMessage{ChanID: g.ChanID, TimeLeft: r.timeLeft()}
 				}
 				continue
 			}
+			if alreadyAnswered {
+				continue
+			}
 
 			// show correct answer
+			DefaultDB.incStats("answer_correct")
+			DefaultDB.incChannelStats(g.ChanID, "answer_correct")
+			DefaultDB.incPlayerStats(msg.Player.ID, "answer_correct")
 			g.Out <- r.questionText(g.ChanID, false)
 			if r.finised() {
 				timeLeftTick.Stop()
@@ -195,6 +208,8 @@ func (g *Game) startRound(currentRound int) error {
 				g.updateRanking(r.ranking())
 				g.Out <- StateMessage{ChanID: g.ChanID, State: RoundFinished, Round: currentRound}
 				log.Info("Round finished", zap.String("ChanID", g.ChanID), zap.Bool("timeout", false))
+				DefaultDB.incStats("round_finished")
+				DefaultDB.incChannelStats(g.ChanID, "round_finished")
 				return nil
 			}
 		case <-timeLeftTick.C: // inform time left
@@ -210,6 +225,8 @@ func (g *Game) startRound(currentRound int) error {
 			log.Info("Round finished", zap.String("ChanID", g.ChanID), zap.Bool("timeout", true))
 			showUnAnswered := true
 			g.Out <- r.questionText(g.ChanID, showUnAnswered)
+			DefaultDB.incStats("round_timeout")
+			DefaultDB.incChannelStats(g.ChanID, "round_timeout")
 			return nil
 		}
 	}

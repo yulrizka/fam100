@@ -21,7 +21,7 @@ func TestMain(m *testing.M) {
 	}
 	fam100.DefaultDB.Reset()
 	retCode := m.Run()
-	fam100.DB.Close()
+	fam100.QuestionDB.Close()
 	os.Exit(retCode)
 }
 
