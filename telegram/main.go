@@ -29,7 +29,7 @@ var (
 	startedAt            time.Time
 	timeoutChan          = make(chan string, 10000)
 
-	// compiled information
+	// compiled time information
 	VERSION   = ""
 	BUILDTIME = ""
 )
@@ -41,6 +41,7 @@ func init() {
 }
 
 func main() {
+	flag.StringVar(&botName, "botname", "fam100bot", "bot name")
 	flag.IntVar(&minQuorum, "quorum", 3, "minimal channel quorum")
 	logLevel := zap.LevelFlag("v", zap.InfoLevel, "log level: all, debug, info, warn, error, panic, fatal, none")
 	flag.Parse()
@@ -88,45 +89,9 @@ func main() {
 	telegram.Start()
 }
 
-// channel represents channels chat rooms
-type channel struct {
-	ID           string
-	game         *fam100.Game
-	quorumPlayer map[string]bool
-	startedAt    time.Time
-	cancelTimer  context.CancelFunc
-}
-
-func (c *channel) startQuorumTimer(wait time.Duration, out chan bot.Message) {
-	var ctx context.Context
-	ctx, c.cancelTimer = context.WithCancel(context.Background())
-	go func() {
-		endAt := time.Now().Add(quorumWait)
-		notify := []int64{60, 30, 15}
-
-		for {
-			if len(notify) == 0 {
-				timeoutChan <- c.ID
-				return
-			}
-			timeLeft := time.Duration(notify[0]) * time.Second
-			tickAt := endAt.Add(-timeLeft)
-			notify = notify[1:]
-
-			select {
-			case <-ctx.Done(): //canceled
-				return
-			case <-time.After(tickAt.Sub(time.Now())):
-				text := fmt.Sprintf(fam100.T("Waktu sisa %s"), timeLeft)
-				out <- bot.Message{Chat: bot.Chat{ID: c.ID}, Text: text, Format: bot.Markdown}
-			}
-		}
-	}()
-}
-
 type fam100Bot struct {
 	// channel to communicate with telegram
-	in       chan *bot.Message
+	in       chan interface{}
 	out      chan bot.Message
 	channels map[string]*channel
 
@@ -140,8 +105,8 @@ func (*fam100Bot) Name() string {
 	return "Fam100Bot"
 }
 
-func (b *fam100Bot) Init(out chan bot.Message) (in chan *bot.Message, err error) {
-	b.in = make(chan *bot.Message, telegramInBufferSize)
+func (b *fam100Bot) Init(out chan bot.Message) (in chan interface{}, err error) {
+	b.in = make(chan interface{}, telegramInBufferSize)
 	b.out = out
 	b.gameIn = make(chan fam100.Message, gameInBufferSize)
 	b.gameOut = make(chan fam100.Message, gameOutBufferSize)
@@ -166,47 +131,51 @@ func (b *fam100Bot) handleInbox() {
 		select {
 		case <-b.quit:
 			return
-		case msg := <-b.in:
-			if msg == nil {
+		case rawMsg := <-b.in:
+			if rawMsg == nil {
 				log.Fatal("handleInbox input channel is closed")
 			}
-			if msg.Date.Before(startedAt) {
-				// ignore message that is received before the process started
+			switch msg := rawMsg.(type) {
+			case *bot.ChannelMigratedMessage:
+				b.handleChannelMigration(msg)
 				continue
-			}
-			msgType := msg.Chat.Type
-			if msgType == bot.Private {
-				continue
-			}
-
-			// ## Handle Commands ##
-			if b.handleChannelMigration(msg) {
-				continue
-			}
-			switch msg.Text {
-			case "/join", "/join@" + botName:
-				if b.handleJoin(msg) {
+			case *bot.Message:
+				if msg.Date.Before(startedAt) {
+					// ignore message that is received before the process started
 					continue
 				}
-			case "/score", "/score@" + botName:
-				if b.handleScore(msg) {
+				msgType := msg.Chat.Type
+				if msgType == bot.Private {
+					// private message is not supported yet
 					continue
 				}
-			}
 
-			chanID := msg.Chat.ID
-			ch, ok := b.channels[chanID]
-			if chanID == "" || !ok || len(ch.quorumPlayer) < minQuorum {
-				// ignore message if no game started or it's not quorum yet
-				continue
-			}
+				// ## Handle Commands ##
+				switch msg.Text {
+				case "/join", "/join@" + botName:
+					if b.handleJoin(msg) {
+						continue
+					}
+				case "/score", "/score@" + botName:
+					if b.handleScore(msg) {
+						continue
+					}
+				}
 
-			// pass message to the game package
-			gameMsg := fam100.TextMessage{
-				Player: fam100.Player{ID: fam100.PlayerID(msg.From.ID), Name: msg.From.FullName()},
-				Text:   msg.Text,
+				chanID := msg.Chat.ID
+				ch, ok := b.channels[chanID]
+				if chanID == "" || !ok || len(ch.quorumPlayer) < minQuorum {
+					// ignore message if no game started or it's not quorum yet
+					continue
+				}
+
+				// pass message to the fam100 game package
+				gameMsg := fam100.TextMessage{
+					Player: fam100.Player{ID: fam100.PlayerID(msg.From.ID), Name: msg.From.FullName()},
+					Text:   msg.Text,
+				}
+				ch.game.In <- gameMsg
 			}
-			ch.game.In <- gameMsg
 
 		case chanID := <-timeoutChan:
 			// chan failed to get quorum
@@ -218,6 +187,7 @@ func (b *fam100Bot) handleInbox() {
 	}
 }
 
+// handleJoin handles "/join". Create game and start it if quorum
 func (b *fam100Bot) handleJoin(msg *bot.Message) bool {
 	chanID := msg.Chat.ID
 	ch, ok := b.channels[chanID]
@@ -272,6 +242,7 @@ func (b *fam100Bot) handleJoin(msg *bot.Message) bool {
 	return false
 }
 
+// handleJoin handles "/score" show top score for current channel
 func (b *fam100Bot) handleScore(msg *bot.Message) bool {
 	chanID := msg.Chat.ID
 	rank, err := fam100.DefaultDB.ChannelRanking(chanID, 100)
@@ -286,21 +257,19 @@ func (b *fam100Bot) handleScore(msg *bot.Message) bool {
 	return true
 }
 
-// handleChannelMigration handles if channel is migrated from group -> supergroup
-func (b *fam100Bot) handleChannelMigration(msg *bot.Message) bool {
+// handleChannelMigration handles if channel is migrated from group -> supergroup (telegram specific)
+func (b *fam100Bot) handleChannelMigration(msg *bot.ChannelMigratedMessage) bool {
 	chanID := msg.Chat.ID
-	ch, exists := b.channels[chanID]
-	if extra, ok := msg.Extra.(bot.ChannelMigrated); exists && ok {
-		newID := extra.ToID
+	if ch, exists := b.channels[chanID]; exists {
+		newID := msg.ToID
 		ch.ID = newID
 		ch.game.ChanID = newID
 		delete(b.channels, chanID)
 		b.channels[newID] = ch
-
 		log.Info("Channel migrated", zap.String("from", chanID), zap.String("to", newID))
-		return true
 	}
-	return false
+
+	return true
 }
 
 // handleOutbox handles outgoing message from game package
@@ -357,6 +326,42 @@ func (b *fam100Bot) handleOutbox() {
 			}
 		}
 	}
+}
+
+// channel represents channels chat rooms
+type channel struct {
+	ID           string
+	game         *fam100.Game
+	quorumPlayer map[string]bool
+	startedAt    time.Time
+	cancelTimer  context.CancelFunc
+}
+
+func (c *channel) startQuorumTimer(wait time.Duration, out chan bot.Message) {
+	var ctx context.Context
+	ctx, c.cancelTimer = context.WithCancel(context.Background())
+	go func() {
+		endAt := time.Now().Add(quorumWait)
+		notify := []int64{60, 30, 15}
+
+		for {
+			if len(notify) == 0 {
+				timeoutChan <- c.ID
+				return
+			}
+			timeLeft := time.Duration(notify[0]) * time.Second
+			tickAt := endAt.Add(-timeLeft)
+			notify = notify[1:]
+
+			select {
+			case <-ctx.Done(): //canceled
+				return
+			case <-time.After(tickAt.Sub(time.Now())):
+				text := fmt.Sprintf(fam100.T("Waktu sisa %s"), timeLeft)
+				out <- bot.Message{Chat: bot.Chat{ID: c.ID}, Text: text, Format: bot.Markdown}
+			}
+		}
+	}()
 }
 
 func formatRoundText(msg fam100.RoundTextMessage) string {

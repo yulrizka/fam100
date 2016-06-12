@@ -21,7 +21,7 @@ func init() {
 }
 
 func SetLogger(l zap.Logger) {
-	log = l
+	log = l.With(zap.String("module", "fam100"))
 }
 
 // Message to communitace between player and the game
