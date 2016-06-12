@@ -48,6 +48,8 @@ type TickMessage struct {
 	TimeLeft time.Duration
 }
 
+type WrongAnswerMessage TickMessage
+
 // QNAMessage represents question and answer for a round
 type QNAMessage struct {
 	ChanID         string
@@ -187,7 +189,7 @@ func (g *Game) startRound(currentRound int) error {
 			correct, alreadyAnswered, _ := r.answer(msg.Player, answer)
 			if !correct {
 				if TickAfterWrongAnswer {
-					g.Out <- TickMessage{ChanID: g.ChanID, TimeLeft: r.timeLeft()}
+					g.Out <- WrongAnswerMessage{ChanID: g.ChanID, TimeLeft: r.timeLeft()}
 				}
 				continue
 			}

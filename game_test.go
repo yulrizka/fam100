@@ -12,7 +12,7 @@ func TestMain(m *testing.M) {
 		panic(err)
 	}
 	DefaultDB.Init()
-	DefaultDB.conn.Do("FLUSHDB")
+	DefaultDB.Reset()
 	retCode := m.Run()
 	os.Exit(retCode)
 }

@@ -2,11 +2,14 @@ package main
 
 import (
 	"bufio"
+	"bytes"
+	"flag"
 	"fmt"
 	"os"
 	"strings"
 	"time"
 
+	"github.com/uber-go/zap"
 	"github.com/yulrizka/fam100"
 )
 
@@ -15,9 +18,40 @@ var (
 	name        string
 	roundPlayed int
 	seed        int64
+
+	log    = zap.NewJSON()
+	dbPath = "fam100.db"
 )
 
 func main() {
+	// setup logging
+	flag.StringVar(&dbPath, "db", "fam100.db", "question database")
+	logLevel := zap.LevelFlag("v", zap.ErrorLevel, "log level: all, debug, info, warn, error, panic, fatal, none")
+	flag.Parse()
+	log.SetLevel(*logLevel)
+	zap.AddCaller()
+
+	fam100.SetLogger(log)
+
+	fam100.DefaultDB = &fam100.MemoryDB{Seed: 0}
+	fam100.TickAfterWrongAnswer = true
+
+	// setup question DB
+	n, err := fam100.InitQuestion(dbPath)
+	if err != nil {
+		log.Fatal("Failed loading question DB", zap.Error(err))
+	} else {
+		log.Info("Question loaded", zap.Int("nQuestion", n))
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			fam100.QuestionDB.Close()
+			panic(r)
+		}
+		fam100.QuestionDB.Close()
+	}()
+	fam100.RoundPerGame = n
+
 	printHeader()
 	seed = time.Now().UnixNano()
 
@@ -55,7 +89,6 @@ func printHeader() {
 }
 
 func startGame() {
-	fam100.InitQuestion("fam100.db")
 	for {
 		fmt.Printf("Siap ? (y/n) ")
 		ya := []string{"ya", "y", "yes"}
@@ -75,35 +108,59 @@ func startGame() {
 		out := make(chan fam100.Message)
 		game, _ := fam100.NewGame("cli", in, out)
 		game.Start()
-		/*
-			GAME:
-					for {
-						select {
-						case m := <-out:
-								switch m.Kind {
-								case fam100.TextMessage:
-									fmt.Println(m.Text)
-									fmt.Println()
-								case fam100.StateMessage:
-									switch m.Text {
-									case string(fam100.Finished):
-										break GAME
-									case string(fam100.RoundFinished):
-										roundPlayed++
-									}
-								default:
-									// for debuging
-									//fmt.Printf("m = %+v\n", m)
-								}
-						case i := <-input:
-							fmt.Println()
-							msg := fam100.Message{
-								Player: fam100.Player{ID: fam100.PlayerID(name), Name: name},
-								Text:   i,
-							}
-							in <- msg
-						}
+
+		for {
+			select {
+			case m := <-out:
+				//fmt.Printf("m = %+v\n", m)
+				switch msg := m.(type) {
+				case fam100.StateMessage:
+					if msg.State == fam100.RoundStarted {
+						fmt.Println(formatQNA(msg.RoundText))
+						fmt.Println()
 					}
-		*/
+				case fam100.QNAMessage:
+					fmt.Println(formatQNA(msg))
+					fmt.Println()
+				case fam100.WrongAnswerMessage:
+					fmt.Printf("salah, sisa waktu %s\n", msg.TimeLeft)
+				case fam100.RankMessage:
+					var score = 0
+					if len(msg.Rank) > 0 {
+						score = msg.Rank[0].Score
+					}
+					fmt.Printf("Total Score > %d\n\n", score)
+				default:
+					//fmt.Printf("msg = %+v\n", msg)
+				}
+			case i := <-input:
+				msg := fam100.TextMessage{
+					Player: fam100.Player{ID: fam100.PlayerID(name), Name: name},
+					Text:   i,
+				}
+				in <- msg
+			}
+		}
 	}
+}
+
+func formatQNA(msg fam100.QNAMessage) string {
+	var b bytes.Buffer
+	w := bufio.NewWriter(&b)
+
+	fmt.Fprintf(w, "[%d] %s?\n\n", msg.QuestionID, msg.QuestionText)
+	for i, a := range msg.Answers {
+		if a.Answered {
+			fmt.Fprintf(w, "%d. %-30s [ %2d ] - %s\n", i+1, a.Text, a.Score, a.PlayerName)
+		} else {
+			if msg.ShowUnanswered {
+				fmt.Fprintf(w, "%d. %-30s [ %2d ]\n", i+1, a.Text, a.Score)
+			} else {
+				fmt.Fprintf(w, "%d. ______________________________\n", i+1)
+			}
+		}
+	}
+	w.Flush()
+
+	return b.String()
 }

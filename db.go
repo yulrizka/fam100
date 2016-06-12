@@ -7,13 +7,38 @@ import (
 	"github.com/garyburd/redigo/redis"
 )
 
+type db interface {
+	Reset() error
+	Init() (err error)
+
+	incStats(key string) error
+	incChannelStats(chanID, key string) error
+	incPlayerStats(playerID PlayerID, key string) error
+	stats(key string) (interface{}, error)
+	channelStats(chanID, key string) (interface{}, error)
+	playerStats(playerID, key string) (interface{}, error)
+
+	nextGame(chanID string) (seed int64, nextRound int, err error)
+	incRoundPlayed(chanID string) error
+
+	saveScore(chanID string, scores Rank) error
+	ChannelRanking(chanID string, limit int) (ranking Rank, err error)
+	playerRanking(limit int) (Rank, error)
+	playerScore(playerID PlayerID) (ps playerScore, err error)
+	playerChannelScore(chanID string, playerID PlayerID) (playerScore, error)
+}
+
 var (
 	redisPrefix = "fam100"
 
 	gStatsKey, cStatsKey, pStatsKey, cRankKey, pNameKey, pRankKey string
 )
 
-var DefaultDB RedisDB
+var DefaultDB db
+
+func init() {
+	DefaultDB = new(RedisDB)
+}
 
 func SetPrefix(prefix string) {
 	redisPrefix = prefix
@@ -175,4 +200,36 @@ func (r RedisDB) getScore(key string, playerID PlayerID) (ps playerScore, err er
 	}
 
 	return ps, nil
+}
+
+// MemoryDb stores data in non persistence way
+type MemoryDB struct {
+	Seed   int64
+	played int
+}
+
+func (m *MemoryDB) Reset() error                                                      { return nil }
+func (m *MemoryDB) Init() (err error)                                                 { return nil }
+func (m *MemoryDB) incStats(key string) error                                         { return nil }
+func (m *MemoryDB) incChannelStats(chanID, key string) error                          { return nil }
+func (m *MemoryDB) incPlayerStats(playerID PlayerID, key string) error                { return nil }
+func (m *MemoryDB) stats(key string) (interface{}, error)                             { return nil, nil }
+func (m *MemoryDB) channelStats(chanID, key string) (interface{}, error)              { return nil, nil }
+func (m *MemoryDB) playerStats(playerID, key string) (interface{}, error)             { return nil, nil }
+func (m *MemoryDB) saveScore(chanID string, scores Rank) error                        { return nil }
+func (m *MemoryDB) ChannelRanking(chanID string, limit int) (ranking Rank, err error) { return nil, nil }
+func (m *MemoryDB) playerRanking(limit int) (Rank, error)                             { return nil, nil }
+func (m *MemoryDB) playerScore(playerID PlayerID) (ps playerScore, err error) {
+	return playerScore{}, nil
+}
+func (m *MemoryDB) playerChannelScore(chanID string, playerID PlayerID) (playerScore, error) {
+	return playerScore{}, nil
+}
+
+func (m *MemoryDB) nextGame(chanID string) (seed int64, nextRound int, err error) {
+	return m.Seed, m.played + 1, nil
+}
+func (m *MemoryDB) incRoundPlayed(chanID string) error {
+	m.played++
+	return nil
 }
