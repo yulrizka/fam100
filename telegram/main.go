@@ -3,8 +3,11 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"flag"
 	"fmt"
 	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"golang.org/x/net/context"
@@ -16,6 +19,7 @@ import (
 
 var (
 	log                  zap.Logger
+	logLevel             int
 	minQuorum            = 3 // minimum players to start game
 	quorumWait           = 120 * time.Second
 	telegramInBufferSize = 10000
@@ -28,15 +32,23 @@ var (
 )
 
 func init() {
-	log = zap.NewJSON()
-	zap.AddCaller()
+	log = zap.NewJSON(zap.AddCaller(), zap.AddStacks(zap.FatalLevel))
 }
 
 func main() {
+	// setup logger
+	logLevel := zap.LevelFlag("v", zap.InfoLevel, "log level: all, debug, info, warn, error, panic, fatal, none")
+	flag.Parse()
+	log.SetLevel(*logLevel)
+	bot.SetLogger(log)
+	fam100.SetLogger(log)
+
 	key := os.Getenv("TELEGRAM_KEY")
 	if key == "" {
 		log.Fatal("TELEGRAM_KEY can not be empty")
 	}
+	handleSignal()
+
 	dbPath := "fam100.db"
 	if path := os.Getenv("QUESTION_DB_PATH"); path != "" {
 		dbPath = path
@@ -46,6 +58,14 @@ func main() {
 	} else {
 		log.Info("Question loaded", zap.Int("nQuestion", n))
 	}
+	defer func() {
+		if r := recover(); r != nil {
+			fam100.DB.Close()
+			panic(r)
+		}
+		fam100.DB.Close()
+	}()
+
 	if err := fam100.DefaultDB.Init(); err != nil {
 		log.Fatal("Failed loading DB", zap.Error(err))
 	}
@@ -90,7 +110,7 @@ func (c *channel) startQuorumTimer(wait time.Duration, out chan bot.Message) {
 				return
 			case <-time.After(tickAt.Sub(time.Now())):
 				text := fmt.Sprintf(fam100.T("Waktu sisa %s"), timeLeft)
-				out <- bot.Message{Chat: bot.Chat{ID: c.ID, Type: bot.Group}, Text: text, Format: bot.Markdown}
+				out <- bot.Message{Chat: bot.Chat{ID: c.ID}, Text: text, Format: bot.Markdown}
 			}
 		}
 	}()
@@ -112,111 +132,61 @@ func (*fam100Bot) Name() string {
 	return "Fam100Bot"
 }
 
-func (m *fam100Bot) Init(out chan bot.Message) (in chan *bot.Message, err error) {
-	m.in = make(chan *bot.Message, telegramInBufferSize)
-	m.out = out
-	m.gameIn = make(chan fam100.Message, gameInBufferSize)
-	m.gameOut = make(chan fam100.Message, gameOutBufferSize)
-	m.channels = make(map[string]*channel)
-	m.quit = make(chan struct{})
+func (b *fam100Bot) Init(out chan bot.Message) (in chan *bot.Message, err error) {
+	b.in = make(chan *bot.Message, telegramInBufferSize)
+	b.out = out
+	b.gameIn = make(chan fam100.Message, gameInBufferSize)
+	b.gameOut = make(chan fam100.Message, gameOutBufferSize)
+	b.channels = make(map[string]*channel)
+	b.quit = make(chan struct{})
 
-	return m.in, nil
+	return b.in, nil
 }
 
-func (m *fam100Bot) start() {
-	go m.handleOutbox()
-	go m.handleInbox()
+func (b *fam100Bot) start() {
+	go b.handleOutbox()
+	go b.handleInbox()
 }
 
-func (m *fam100Bot) stop() {
-	close(m.quit)
+func (b *fam100Bot) stop() {
+	close(b.quit)
 }
 
-func (m *fam100Bot) handleInbox() {
+// handleInbox handles incomming chat message
+func (b *fam100Bot) handleInbox() {
 	for {
 		select {
-		case <-m.quit:
+		case <-b.quit:
 			return
-		case msg := <-m.in:
+		case msg := <-b.in:
 			if msg == nil {
-				return // closed channel
+				log.Fatal("handleInbox input channel is closed")
 			}
 			if msg.Date.Before(startedAt) {
 				// ignore message that is received before the process started
 				continue
 			}
-
 			msgType := msg.Chat.Type
-			if msgType != bot.Group && msgType != bot.SuperGroup {
-				// For now only accept group message
-				return
+			if msgType == bot.Private {
+				continue
 			}
+
+			// ## Handle Commands ##
+			if b.handleChannelMigration(msg) {
+				continue
+			}
+			if b.handleJoin(msg) {
+				continue
+			}
+
 			chanID := msg.Chat.ID
-			ch, ok := m.channels[chanID]
-
-			if msg.Text == "/join" || msg.Text == "/join@"+botName {
-				if !ok {
-					// create a new game
-					quorumPlayer := map[string]bool{msg.From.ID: true}
-					game, err := fam100.NewGame(chanID, m.gameIn, m.gameOut)
-					if err != nil {
-						log.Error("creating a game", zap.String("chanID", chanID))
-						continue
-					}
-
-					ch := &channel{ID: chanID, game: game, quorumPlayer: quorumPlayer}
-					m.channels[chanID] = ch
-					ch.startQuorumTimer(quorumWait, m.out)
-					text := fmt.Sprintf(
-						fam100.T("*%s* OK, butuh %d orang lagi, sisa waktu %s"),
-						msg.From.FullName(),
-						minQuorum-len(quorumPlayer),
-						quorumWait,
-					)
-					m.out <- bot.Message{Chat: bot.Chat{ID: chanID, Type: bot.Group}, Text: text, Format: bot.Markdown}
-					log.Info("User joined", zap.String("playerID", msg.From.ID), zap.String("chanID", chanID))
-					continue
-				} else {
-					if ch.game.State != fam100.Created || ch.quorumPlayer[msg.From.ID] {
-						continue
-					}
-					ch.cancelTimer()
-					ch.quorumPlayer[msg.From.ID] = true
-					if len(ch.quorumPlayer) == minQuorum {
-						ch.game.Start()
-						continue
-					}
-					ch.startQuorumTimer(quorumWait, m.out)
-					text := fmt.Sprintf(
-						fam100.T("*%s* OK, butuh %d orang lagi, sisa waktu %s"),
-						msg.From.FullName(),
-						minQuorum-len(ch.quorumPlayer),
-						quorumWait,
-					)
-					m.out <- bot.Message{Chat: bot.Chat{ID: chanID, Type: bot.Group}, Text: text, Format: bot.Markdown}
-					log.Info("User joined", zap.String("playerID", msg.From.ID), zap.String("chanID", chanID))
-				}
-			}
-
-			if chanID == "" || !ok {
-				// ignore message since no game started for that channel
+			ch, ok := b.channels[chanID]
+			if chanID == "" || !ok || len(ch.quorumPlayer) < minQuorum {
+				// ignore message if no game started or it's not quorum yet
 				continue
 			}
 
-			if msg.Text == "/leave" || msg.Text == "/leave@"+botName {
-				if _, ok := ch.quorumPlayer[msg.From.ID]; ok {
-					delete(ch.quorumPlayer, msg.From.ID)
-					text := fmt.Sprintf(fam100.T("*%s* OK,  😞"), msg.From.FullName())
-					m.out <- bot.Message{Chat: bot.Chat{ID: chanID, Type: bot.Group}, Text: text, Format: bot.Markdown}
-					log.Info("User left game", zap.String("playerID", msg.From.ID), zap.String("chanID", chanID))
-				}
-				continue
-			}
-
-			if len(ch.quorumPlayer) < minQuorum {
-				continue
-			}
-
+			// pass message to the game package
 			gameMsg := fam100.TextMessage{
 				Player: fam100.Player{ID: fam100.PlayerID(msg.From.ID), Name: msg.From.FullName()},
 				Text:   msg.Text,
@@ -225,20 +195,90 @@ func (m *fam100Bot) handleInbox() {
 
 		case chanID := <-timeoutChan:
 			// chan failed to get quorum
-			delete(m.channels, chanID)
+			delete(b.channels, chanID)
 			text := fmt.Sprintf(fam100.T("Permainan dibatalkan, jumlah pemain tidak cukup  😞"))
-			m.out <- bot.Message{Chat: bot.Chat{ID: chanID, Type: bot.Group}, Text: text, Format: bot.Markdown}
+			b.out <- bot.Message{Chat: bot.Chat{ID: chanID}, Text: text, Format: bot.Markdown}
 			log.Info("Quorum timeout", zap.String("chanID", chanID))
 		}
 	}
 }
 
-func (m *fam100Bot) handleOutbox() {
+func (b *fam100Bot) handleJoin(msg *bot.Message) bool {
+	chanID := msg.Chat.ID
+	ch, ok := b.channels[chanID]
+	if msg.Text == "/join" || msg.Text == "/join@"+botName {
+		if !ok {
+			// create a new game
+			quorumPlayer := map[string]bool{msg.From.ID: true}
+			game, err := fam100.NewGame(chanID, b.gameIn, b.gameOut)
+			if err != nil {
+				log.Error("creating a game", zap.String("chanID", chanID))
+				return true
+			}
+
+			ch := &channel{ID: chanID, game: game, quorumPlayer: quorumPlayer}
+			b.channels[chanID] = ch
+			ch.startQuorumTimer(quorumWait, b.out)
+			text := fmt.Sprintf(
+				fam100.T("*%s* OK, butuh %d orang lagi, sisa waktu %s"),
+				msg.From.FullName(),
+				minQuorum-len(quorumPlayer),
+				quorumWait,
+			)
+			b.out <- bot.Message{Chat: bot.Chat{ID: chanID}, Text: text, Format: bot.Markdown}
+			log.Info("User joined", zap.String("playerID", msg.From.ID), zap.String("chanID", chanID))
+			return true
+		}
+
+		if ch.game.State != fam100.Created || ch.quorumPlayer[msg.From.ID] {
+			return true
+		}
+
+		// new player joined
+		ch.cancelTimer()
+		ch.quorumPlayer[msg.From.ID] = true
+		if len(ch.quorumPlayer) == minQuorum {
+			ch.game.Start()
+			return true
+		}
+		ch.startQuorumTimer(quorumWait, b.out)
+		text := fmt.Sprintf(
+			fam100.T("*%s* OK, butuh %d orang lagi, sisa waktu %s"),
+			msg.From.FullName(),
+			minQuorum-len(ch.quorumPlayer),
+			quorumWait,
+		)
+		b.out <- bot.Message{Chat: bot.Chat{ID: chanID}, Text: text, Format: bot.Markdown}
+		log.Info("User joined", zap.String("playerID", msg.From.ID), zap.String("chanID", chanID))
+	}
+
+	return false
+}
+
+// handleChannelMigration handles if channel is migrated from group -> supergroup
+func (b *fam100Bot) handleChannelMigration(msg *bot.Message) bool {
+	chanID := msg.Chat.ID
+	ch, exists := b.channels[chanID]
+	if extra, ok := msg.Extra.(bot.ChannelMigrated); exists && ok {
+		newID := extra.ToID
+		ch.ID = newID
+		ch.game.ChanID = newID
+		delete(b.channels, chanID)
+		b.channels[newID] = ch
+
+		log.Info("Channel migrated", zap.String("from", chanID), zap.String("to", newID))
+		return true
+	}
+	return false
+}
+
+// handleOutbox handles outgoing message from game package
+func (b *fam100Bot) handleOutbox() {
 	for {
 		select {
-		case <-m.quit:
+		case <-b.quit:
 			return
-		case rawMsg := <-m.gameOut:
+		case rawMsg := <-b.gameOut:
 
 			switch msg := rawMsg.(type) {
 			default:
@@ -248,22 +288,22 @@ func (m *fam100Bot) handleOutbox() {
 				switch msg.State {
 				case fam100.Started:
 					text := fmt.Sprintf(fam100.T("Game dimulai, siapapun boleh menjawab tanpa `/join`"))
-					m.out <- bot.Message{Chat: bot.Chat{ID: msg.ChanID, Type: bot.Group}, Text: text, Format: bot.Markdown}
+					b.out <- bot.Message{Chat: bot.Chat{ID: msg.ChanID}, Text: text, Format: bot.Markdown}
 
 				case fam100.RoundStarted:
 					text := fmt.Sprintf(fam100.T("Ronde %d dari %d"), msg.Round, fam100.RoundPerGame)
 					text += "\n\n" + formatRoundText(msg.RoundText)
-					m.out <- bot.Message{Chat: bot.Chat{ID: msg.ChanID, Type: bot.Group}, Text: text, Format: bot.HTML}
+					b.out <- bot.Message{Chat: bot.Chat{ID: msg.ChanID}, Text: text, Format: bot.HTML}
 
 				case fam100.Finished:
-					delete(m.channels, msg.ChanID)
+					delete(b.channels, msg.ChanID)
 					text := fmt.Sprintf(fam100.T("Game selesai!"))
-					m.out <- bot.Message{Chat: bot.Chat{ID: msg.ChanID, Type: bot.Group}, Text: text, Format: bot.Markdown}
+					b.out <- bot.Message{Chat: bot.Chat{ID: msg.ChanID}, Text: text, Format: bot.Markdown}
 				}
 
 			case fam100.RoundTextMessage:
 				text := formatRoundText(msg)
-				m.out <- bot.Message{Chat: bot.Chat{ID: msg.ChanID, Type: bot.Group}, Text: text, Format: bot.HTML}
+				b.out <- bot.Message{Chat: bot.Chat{ID: msg.ChanID}, Text: text, Format: bot.HTML}
 
 			case fam100.RankMessage:
 
@@ -273,16 +313,16 @@ func (m *fam100Bot) handleOutbox() {
 				} else {
 					text = fam100.T("Score sementara:") + text
 				}
-				m.out <- bot.Message{Chat: bot.Chat{ID: msg.ChanID, Type: bot.Group}, Text: text, Format: bot.HTML}
+				b.out <- bot.Message{Chat: bot.Chat{ID: msg.ChanID}, Text: text, Format: bot.HTML}
 
 			case fam100.TickMessage:
 				if msg.TimeLeft == 30*time.Second || msg.TimeLeft == 10*time.Second {
 					text := fmt.Sprintf(fam100.T("sisa waktu %s"), msg.TimeLeft)
-					m.out <- bot.Message{Chat: bot.Chat{ID: msg.ChanID, Type: bot.Group}, Text: text, Format: bot.HTML}
+					b.out <- bot.Message{Chat: bot.Chat{ID: msg.ChanID}, Text: text, Format: bot.HTML}
 				}
 
 			case fam100.TextMessage:
-				m.out <- bot.Message{Chat: bot.Chat{ID: msg.ChanID, Type: bot.Group}, Text: msg.Text}
+				b.out <- bot.Message{Chat: bot.Chat{ID: msg.ChanID}, Text: msg.Text}
 			}
 		}
 	}
@@ -324,4 +364,23 @@ func formatRankText(msg fam100.RankMessage) string {
 	w.Flush()
 
 	return b.String()
+}
+
+func handleSignal() {
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, syscall.SIGUSR1)
+
+	var prev = log.Level()
+	go func() {
+		for {
+			<-c
+			if log.Level() == zap.DebugLevel {
+				log.SetLevel(prev)
+			} else {
+				prev = log.Level()
+				log.SetLevel(zap.DebugLevel)
+			}
+			log.Info("log level switched to", zap.String("level", log.Level().String()))
+		}
+	}()
 }
