@@ -142,11 +142,14 @@ func (b *fam100Bot) handleInbox() {
 			case *bot.Message:
 				if msg.Date.Before(startedAt) {
 					// ignore message that is received before the process started
+					log.Debug("message before started at", zap.Object("msg", msg), zap.String("startedAt", startedAt.String()), zap.String("date", msg.Date.String()))
 					continue
 				}
+				log.Debug("handleInbox got message", zap.Object("msg", msg))
 				msgType := msg.Chat.Type
 				if msgType == bot.Private {
 					// private message is not supported yet
+					log.Debug("Got private message", zap.Object("msg", msg))
 					continue
 				}
 
@@ -164,7 +167,11 @@ func (b *fam100Bot) handleInbox() {
 
 				chanID := msg.Chat.ID
 				ch, ok := b.channels[chanID]
-				if chanID == "" || !ok || len(ch.quorumPlayer) < minQuorum {
+				if chanID == "" || !ok {
+					log.Debug("channels not found", zap.String("chanID", chanID), zap.Object("msg", msg))
+					continue
+				}
+				if len(ch.quorumPlayer) < minQuorum {
 					// ignore message if no game started or it's not quorum yet
 					continue
 				}
@@ -175,6 +182,7 @@ func (b *fam100Bot) handleInbox() {
 					Text:   msg.Text,
 				}
 				ch.game.In <- gameMsg
+				log.Debug("sent to game", zap.String("chanID", chanID), zap.Object("msg", msg))
 			}
 
 		case chanID := <-timeoutChan:

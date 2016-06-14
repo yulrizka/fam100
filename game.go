@@ -187,8 +187,9 @@ func (g *Game) startRound(currentRound int) error {
 				log.Error("Unexpected message type input from client")
 				continue
 			}
+			log.Debug("startRound got message", zap.String("chanID", g.ChanID), zap.Object("msg", msg))
 			answer := msg.Text
-			correct, alreadyAnswered, _ := r.answer(msg.Player, answer)
+			correct, alreadyAnswered, idx := r.answer(msg.Player, answer)
 			if !correct {
 				if TickAfterWrongAnswer {
 					g.Out <- WrongAnswerMessage{ChanID: g.ChanID, TimeLeft: r.timeLeft()}
@@ -196,6 +197,7 @@ func (g *Game) startRound(currentRound int) error {
 				continue
 			}
 			if alreadyAnswered {
+				log.Debug("already answered", zap.String("chanID", g.ChanID), zap.String("by", string(r.correct[idx])))
 				continue
 			}
 
