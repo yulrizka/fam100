@@ -1,6 +1,9 @@
 package fam100
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestGetQuestion(t *testing.T) {
 	q, err := GetQuestion("1")
@@ -10,9 +13,18 @@ func TestGetQuestion(t *testing.T) {
 
 	ans := q.Answers[1]
 	wCorrect, wScore, wIndex := true, ans.Score, 1
-	gCorrect, gScore, gIndex := q.checkAnswer(ans.Text[0])
-	if gCorrect != wCorrect || gScore != wScore {
-		t.Errorf("want: correct %t got %t, score %d got %d, index %d got %d", wCorrect, gCorrect, wScore, gScore, wIndex, gIndex)
+	texts := []string{
+		ans.Text[0],
+		ans.Text[0] + " ",
+		" " + ans.Text[0] + " ",
+		strings.ToUpper(ans.Text[0]),
+	}
+	for _, text := range texts {
+		gCorrect, gScore, gIndex := q.checkAnswer(text)
+
+		if gCorrect != wCorrect || gScore != wScore {
+			t.Errorf("want: correct %t got %t, score %d got %d, index %d got %d", wCorrect, gCorrect, wScore, gScore, wIndex, gIndex)
+		}
 	}
 }
 

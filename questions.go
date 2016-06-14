@@ -113,6 +113,7 @@ func GetQuestion(id string) (q Question, err error) {
 		q.lookup = make(map[string]int)
 		for i, ans := range q.Answers {
 			for _, text := range ans.Text {
+				text = strings.TrimSpace(strings.ToLower(text))
 				q.lookup[text] = i
 			}
 		}
