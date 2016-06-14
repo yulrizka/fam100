@@ -41,7 +41,7 @@ func init() {
 	DefaultDB = new(RedisDB)
 }
 
-func SetPrefix(prefix string) {
+func SetRedisPrefix(prefix string) {
 	redisPrefix = prefix
 	// g: global, c: channel, p:player
 	gStatsKey = fmt.Sprintf("%s_stats_", redisPrefix)
@@ -80,7 +80,7 @@ func (r *RedisDB) Init() (err error) {
 	if _, err := r.pool.Get().Do("PING"); err != nil {
 		return err
 	}
-	SetPrefix(redisPrefix)
+	SetRedisPrefix(redisPrefix)
 
 	return nil
 }
