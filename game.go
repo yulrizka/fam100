@@ -133,6 +133,11 @@ func NewGame(id string, in, out chan Message) (r *Game, err error) {
 // Start the game
 func (g *Game) Start() {
 	g.State = Started
+	log.Info("Game started",
+		zap.String("chanID", g.ChanID),
+		zap.Int64("seed", g.seed),
+		zap.Int("totalRoundPlayed", g.TotalRoundPlayed))
+
 	go func() {
 		g.Out <- StateMessage{ChanID: g.ChanID, State: Started}
 		DefaultDB.incStats("game_started")
@@ -153,10 +158,6 @@ func (g *Game) Start() {
 		g.Out <- StateMessage{ChanID: g.ChanID, State: Finished}
 		log.Info("Game finished", zap.String("chanID", g.ChanID))
 	}()
-	log.Info("Game started",
-		zap.String("chanID", g.ChanID),
-		zap.Int64("seed", g.seed),
-		zap.Int("totalRoundPlayed", g.TotalRoundPlayed))
 }
 
 func (g *Game) startRound(currentRound int) error {
