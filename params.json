@@ -1,0 +1,6 @@
+{
+  "name": "Fam100",
+  "tagline": "Family Feud game in chat interface",
+  "body": "# Fam100\r\n\r\nFamm100 is a text game library to play \"Family Fued\"\r\n\r\nCurrent supported platform:\r\n\r\n* CLI\r\n* Telegram\r\n\r\nFuture platform additions:\r\n\r\n* Slack\r\n\r\n# Contributors\r\n\r\n* Ahmy Yulrizka (yulrizka@gmail.com)\r\n\r\n# Changelog\r\n\r\n## v0.2 (2016-06-13)\r\n* Internal Database stability improvement\r\n* play game with cli\r\n* faster answers lookup\r\n\r\n## v0.1 (2016-06-12)\r\n* Able to play in telegram.\r\n* Add `/score` command. \r\n* Add game statistics.\r\n* Internal stability improvement.",
+  "note": "Don't delete this file! It's used internally to help with page regeneration."
+}
