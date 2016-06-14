@@ -151,9 +151,10 @@ func (g *Game) Start() {
 		DefaultDB.incStats("game_finished")
 		DefaultDB.incChannelStats(g.ChanID, "game_finished")
 		g.Out <- StateMessage{ChanID: g.ChanID, State: Finished}
+		log.Info("Game finished", zap.String("chanID", g.ChanID))
 	}()
 	log.Info("Game started",
-		zap.String("channel", g.ChanID),
+		zap.String("chanID", g.ChanID),
 		zap.Int64("seed", g.seed),
 		zap.Int("totalRoundPlayed", g.TotalRoundPlayed))
 }
@@ -202,6 +203,13 @@ func (g *Game) startRound(currentRound int) error {
 			DefaultDB.incChannelStats(g.ChanID, "answer_correct")
 			DefaultDB.incPlayerStats(msg.Player.ID, "answer_correct")
 			g.Out <- r.questionText(g.ChanID, false)
+			log.Info("answer correct",
+				zap.String("playerID", string(msg.Player.ID)),
+				zap.String("playerName", msg.Player.Name),
+				zap.String("answer", answer),
+				zap.Int("questionID", r.q.ID),
+				zap.String("chanID", g.ChanID))
+
 			if r.finised() {
 				timeLeftTick.Stop()
 				r.state = RoundFinished
@@ -210,13 +218,16 @@ func (g *Game) startRound(currentRound int) error {
 				log.Info("Round finished", zap.String("chanID", g.ChanID), zap.Bool("timeout", false))
 				DefaultDB.incStats("round_finished")
 				DefaultDB.incChannelStats(g.ChanID, "round_finished")
+
 				return nil
 			}
+
 		case <-timeLeftTick.C: // inform time left
 			select {
 			case g.Out <- TickMessage{ChanID: g.ChanID, TimeLeft: r.timeLeft()}:
 			default:
 			}
+
 		case <-timeUp: // time is up
 			timeLeftTick.Stop()
 			g.State = RoundFinished
@@ -227,6 +238,7 @@ func (g *Game) startRound(currentRound int) error {
 			g.Out <- r.questionText(g.ChanID, showUnAnswered)
 			DefaultDB.incStats("round_timeout")
 			DefaultDB.incChannelStats(g.ChanID, "round_timeout")
+
 			return nil
 		}
 	}
@@ -352,11 +364,6 @@ func (r *round) answer(p Player, text string) (correct, answered bool, index int
 		}
 		r.correct[i] = p.ID
 		r.players[p.ID] = p
-		log.Info("answer correct",
-			zap.String("playerID", string(p.ID)),
-			zap.String("playerName", p.Name),
-			zap.String("answer", text),
-			zap.Int("questionID", r.q.ID))
 
 		return correct, false, i
 	}
