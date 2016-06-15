@@ -155,6 +155,7 @@ func (g *Game) Start() {
 		}
 		DefaultDB.incStats("game_finished")
 		DefaultDB.incChannelStats(g.ChanID, "game_finished")
+		g.State = Finished
 		g.Out <- StateMessage{ChanID: g.ChanID, State: Finished}
 		log.Info("Game finished", zap.String("chanID", g.ChanID))
 	}()

@@ -144,11 +144,8 @@ func TestQuorumShouldStartGame(t *testing.T) {
 	}
 
 	// Game selesai
-	if want, got := fam100.Started, g.game.State; want != got {
+	if want, got := fam100.Finished, g.game.State; want != got {
 		t.Fatalf("state want %s, got %s", want, got)
-	}
-	if _, exists := b.channels[chanID]; exists {
-		t.Fatalf("channel game is not cleaned up")
 	}
 }
 

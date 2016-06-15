@@ -28,6 +28,7 @@ var (
 	botName              = "fam100bot"
 	startedAt            time.Time
 	timeoutChan          = make(chan string, 10000)
+	finishedChan         = make(chan string, 10000)
 
 	// compiled time information
 	VERSION   = ""
@@ -191,6 +192,9 @@ func (b *fam100Bot) handleInbox() {
 			text := fmt.Sprintf(fam100.T("Permainan dibatalkan, jumlah pemain tidak cukup  😞"))
 			b.out <- bot.Message{Chat: bot.Chat{ID: chanID}, Text: text, Format: bot.Markdown}
 			log.Info("Quorum timeout", zap.String("chanID", chanID))
+
+		case chanID := <-finishedChan:
+			delete(b.channels, chanID)
 		}
 	}
 }
@@ -305,7 +309,7 @@ func (b *fam100Bot) handleOutbox() {
 					b.out <- bot.Message{Chat: bot.Chat{ID: msg.ChanID}, Text: text, Format: bot.HTML}
 
 				case fam100.Finished:
-					delete(b.channels, msg.ChanID)
+					finishedChan <- msg.ChanID
 					text := fmt.Sprintf(fam100.T("Game selesai!"))
 					b.out <- bot.Message{Chat: bot.Chat{ID: msg.ChanID}, Text: text, Format: bot.Markdown}
 				}
