@@ -1,3 +1,7 @@
-cli
-fam100.db
+_site
+.sass-cache
+.jekyll-metadata
+scoreexport
 telegram
+cli/*
+fam100.db
