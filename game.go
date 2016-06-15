@@ -66,8 +66,8 @@ type roundAnswers struct {
 	Score      int
 	Answered   bool
 	PlayerName string
+	Highlight  bool
 }
-
 type RankMessage struct {
 	ChanID string
 	Round  int
@@ -206,7 +206,9 @@ func (g *Game) startRound(currentRound int) error {
 			DefaultDB.incStats("answer_correct")
 			DefaultDB.incChannelStats(g.ChanID, "answer_correct")
 			DefaultDB.incPlayerStats(msg.Player.ID, "answer_correct")
-			g.Out <- r.questionText(g.ChanID, false)
+			qnaText := r.questionText(g.ChanID, false)
+			qnaText.Answers[idx].Highlight = true
+			g.Out <- qnaText
 			log.Info("answer correct",
 				zap.String("playerID", string(msg.Player.ID)),
 				zap.String("playerName", msg.Player.Name),

@@ -384,10 +384,14 @@ func formatRoundText(msg fam100.QNAMessage) string {
 	fmt.Fprintf(w, "[id: %d] %s?\n\n", msg.QuestionID, msg.QuestionText)
 	for i, a := range msg.Answers {
 		if a.Answered {
-			fmt.Fprintf(w, "%d. (%2d) %s \n  ✓ <i>%s</i>\n", i+1, a.Score, a.Text, a.PlayerName)
+			if a.Highlight {
+				fmt.Fprintf(w, "<b>%d. (%2d) %s \n  ✓ %s</b>\n", i+1, a.Score, a.Text, a.PlayerName)
+			} else {
+				fmt.Fprintf(w, "%d. (%2d) %s \n  ✓ <i>%s</i>\n", i+1, a.Score, a.Text, a.PlayerName)
+			}
 		} else {
 			if msg.ShowUnanswered {
-				fmt.Fprintf(w, "%d. (%2d) %s \n", i+1, a.Score, a.Text)
+				fmt.Fprintf(w, "<b>%d. (%2d) %s \n</b>", i+1, a.Score, a.Text)
 			} else {
 				fmt.Fprintf(w, "%d. _________________________\n", i+1)
 			}
