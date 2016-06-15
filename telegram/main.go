@@ -97,7 +97,6 @@ type fam100Bot struct {
 	channels map[string]*channel
 
 	// channel to communicate with game
-	gameIn  chan fam100.Message
 	gameOut chan fam100.Message
 	quit    chan struct{}
 }
@@ -109,7 +108,6 @@ func (*fam100Bot) Name() string {
 func (b *fam100Bot) Init(out chan bot.Message) (in chan interface{}, err error) {
 	b.in = make(chan interface{}, telegramInBufferSize)
 	b.out = out
-	b.gameIn = make(chan fam100.Message, gameInBufferSize)
 	b.gameOut = make(chan fam100.Message, gameOutBufferSize)
 	b.channels = make(map[string]*channel)
 	b.quit = make(chan struct{})
@@ -206,7 +204,9 @@ func (b *fam100Bot) handleJoin(msg *bot.Message) bool {
 	if !ok {
 		// create a new game
 		quorumPlayer := map[string]bool{msg.From.ID: true}
-		game, err := fam100.NewGame(chanID, b.gameIn, b.gameOut)
+
+		gameIn := make(chan fam100.Message, gameInBufferSize)
+		game, err := fam100.NewGame(chanID, gameIn, b.gameOut)
 		if err != nil {
 			log.Error("creating a game", zap.String("chanID", chanID))
 			return true
