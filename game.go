@@ -57,7 +57,7 @@ type QNAMessage struct {
 	QuestionText   string
 	QuestionID     int
 	Answers        []roundAnswers
-	ShowUnanswered bool // reveal un-answered question
+	ShowUnanswered bool // reveal un-answered question (end of round)
 	TimeLeft       time.Duration
 }
 
@@ -101,6 +101,7 @@ const (
 // each round user will be asked question and gain points
 type Game struct {
 	ChanID           string
+	ChanName         string
 	State            State
 	TotalRoundPlayed int
 	players          map[PlayerID]Player
@@ -113,14 +114,15 @@ type Game struct {
 }
 
 // NewGame create a new round
-func NewGame(id string, in, out chan Message) (r *Game, err error) {
-	seed, totalRoundPlayed, err := DefaultDB.nextGame(id)
+func NewGame(chanID, chanName string, in, out chan Message) (r *Game, err error) {
+	seed, totalRoundPlayed, err := DefaultDB.nextGame(chanID)
 	if err != nil {
 		return nil, err
 	}
 
 	return &Game{
-		ChanID:           id,
+		ChanID:           chanID,
+		ChanName:         chanName,
 		State:            Created,
 		players:          make(map[PlayerID]Player),
 		seed:             seed,
@@ -252,7 +254,7 @@ func (g *Game) startRound(currentRound int) error {
 
 func (g *Game) updateRanking(r Rank) {
 	g.rank = g.rank.add(r)
-	DefaultDB.saveScore(g.ChanID, r)
+	DefaultDB.saveScore(g.ChanID, g.ChanName, r)
 }
 
 func (g *Game) CurrentQuestion() Question {

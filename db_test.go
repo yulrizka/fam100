@@ -11,8 +11,9 @@ func TestSaveScore(t *testing.T) {
 		{PlayerID: "ID5", Name: "Name 5", Score: 11},
 	}
 	chanID := "one"
+	chanName := "one channel"
 	for i := 0; i < 2; i++ {
-		if err := DefaultDB.saveScore(chanID, ranking); err != nil {
+		if err := DefaultDB.saveScore(chanID, chanName, ranking); err != nil {
 			t.Error(err)
 		}
 	}
@@ -36,7 +37,8 @@ func TestSaveScore(t *testing.T) {
 
 	// test player rank
 	chanID2 := "two"
-	if err := DefaultDB.saveScore(chanID2, ranking); err != nil {
+	chanName2 := "two channel"
+	if err := DefaultDB.saveScore(chanID2, chanName2, ranking); err != nil {
 		t.Error(err)
 	}
 	playerRank, err := DefaultDB.playerRanking(100)

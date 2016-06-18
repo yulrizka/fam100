@@ -11,6 +11,9 @@ import (
 type db interface {
 	Reset() error
 	Init() (err error)
+	ChannelRanking(chanID string, limit int) (ranking Rank, err error)
+	ChannelCount() (total int, err error)
+	PlayerCount() (total int, err error)
 
 	incStats(key string) error
 	incChannelStats(chanID, key string) error
@@ -22,8 +25,7 @@ type db interface {
 	nextGame(chanID string) (seed int64, nextRound int, err error)
 	incRoundPlayed(chanID string) error
 
-	saveScore(chanID string, scores Rank) error
-	ChannelRanking(chanID string, limit int) (ranking Rank, err error)
+	saveScore(chanID, chanName string, scores Rank) error
 	playerRanking(limit int) (Rank, error)
 	playerScore(playerID PlayerID) (ps playerScore, err error)
 	playerChannelScore(chanID string, playerID PlayerID) (playerScore, error)
@@ -33,6 +35,7 @@ var (
 	redisPrefix = "fam100"
 
 	gStatsKey, cStatsKey, pStatsKey, cRankKey, pNameKey, pRankKey string
+	cNameKey                                                      string
 )
 
 var DefaultDB db
@@ -48,6 +51,8 @@ func SetRedisPrefix(prefix string) {
 	cStatsKey = fmt.Sprintf("%s_chan_stats_", redisPrefix)
 	pStatsKey = fmt.Sprintf("%s_player_stats_", redisPrefix)
 	cRankKey = fmt.Sprintf("%s_chan_rank_", redisPrefix)
+
+	cNameKey = fmt.Sprintf("%s_chan_name", redisPrefix)
 	pNameKey = fmt.Sprintf("%s_player_name", redisPrefix)
 	pRankKey = fmt.Sprintf("%s_player_rank", redisPrefix)
 }
@@ -83,6 +88,14 @@ func (r *RedisDB) Init() (err error) {
 	SetRedisPrefix(redisPrefix)
 
 	return nil
+}
+
+func (r *RedisDB) ChannelCount() (total int, err error) {
+	return redis.Int(r.pool.Get().Do("HLEN", cNameKey))
+}
+
+func (r *RedisDB) PlayerCount() (total int, err error) {
+	return redis.Int(r.pool.Get().Do("HLEN", pNameKey))
 }
 
 func (r *RedisDB) nextGame(chanID string) (seed int64, nextRound int, err error) {
@@ -142,9 +155,10 @@ func (r *RedisDB) incRoundPlayed(chanID string) error {
 	return r.incChannelStats(chanID, "played")
 }
 
-func (r RedisDB) saveScore(chanID string, scores Rank) error {
+func (r RedisDB) saveScore(chanID, chanName string, scores Rank) error {
 	conn := r.pool.Get()
 	for _, score := range scores {
+		conn.Send("HSET", cNameKey, chanID, chanName)
 		conn.Send("HSET", pNameKey, score.PlayerID, score.Name)
 		conn.Send("ZINCRBY", pRankKey, score.Score, score.PlayerID)
 		conn.Send("ZINCRBY", cRankKey+chanID, score.Score, score.PlayerID)
@@ -226,6 +240,7 @@ type MemoryDB struct {
 
 func (m *MemoryDB) Reset() error                                                      { return nil }
 func (m *MemoryDB) Init() (err error)                                                 { return nil }
+func (m *MemoryDB) ChannelRanking(chanID string, limit int) (ranking Rank, err error) { return nil, nil }
 func (m *MemoryDB) incStats(key string) error                                         { return nil }
 func (m *MemoryDB) incChannelStats(chanID, key string) error                          { return nil }
 func (m *MemoryDB) incPlayerStats(playerID PlayerID, key string) error                { return nil }
@@ -233,7 +248,6 @@ func (m *MemoryDB) stats(key string) (interface{}, error)                       
 func (m *MemoryDB) channelStats(chanID, key string) (interface{}, error)              { return nil, nil }
 func (m *MemoryDB) playerStats(playerID, key string) (interface{}, error)             { return nil, nil }
 func (m *MemoryDB) saveScore(chanID string, scores Rank) error                        { return nil }
-func (m *MemoryDB) ChannelRanking(chanID string, limit int) (ranking Rank, err error) { return nil, nil }
 func (m *MemoryDB) playerRanking(limit int) (Rank, error)                             { return nil, nil }
 func (m *MemoryDB) playerScore(playerID PlayerID) (ps playerScore, err error) {
 	return playerScore{}, nil

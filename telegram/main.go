@@ -85,6 +85,7 @@ func main() {
 	if err := telegram.AddPlugin(&plugin); err != nil {
 		log.Fatal("Failed AddPlugin", zap.Error(err))
 	}
+	initMetrics(plugin)
 	plugin.start()
 
 	telegram.Start()
@@ -134,6 +135,7 @@ func (b *fam100Bot) handleInbox() {
 			if rawMsg == nil {
 				log.Fatal("handleInbox input channel is closed")
 			}
+			messageIncomingCount.Inc()
 			switch msg := rawMsg.(type) {
 			case *bot.ChannelMigratedMessage:
 				b.handleChannelMigration(msg)
@@ -147,6 +149,7 @@ func (b *fam100Bot) handleInbox() {
 				log.Debug("handleInbox got message", zap.Object("msg", msg))
 				msgType := msg.Chat.Type
 				if msgType == bot.Private {
+					messagePrivateCount.Inc()
 					// private message is not supported yet
 					log.Debug("Got private message", zap.Object("msg", msg))
 					continue
@@ -199,14 +202,17 @@ func (b *fam100Bot) handleInbox() {
 
 // handleJoin handles "/join". Create game and start it if quorum
 func (b *fam100Bot) handleJoin(msg *bot.Message) bool {
+	commandJoinCount.Inc()
 	chanID := msg.Chat.ID
+	chanName := msg.Chat.Title
 	ch, ok := b.channels[chanID]
 	if !ok {
+		playerJoinedCount.Inc()
 		// create a new game
 		quorumPlayer := map[string]bool{msg.From.ID: true}
 
 		gameIn := make(chan fam100.Message, gameInBufferSize)
-		game, err := fam100.NewGame(chanID, gameIn, b.gameOut)
+		game, err := fam100.NewGame(chanID, chanName, gameIn, b.gameOut)
 		if err != nil {
 			log.Error("creating a game", zap.String("chanID", chanID))
 			return true
@@ -235,6 +241,7 @@ func (b *fam100Bot) handleJoin(msg *bot.Message) bool {
 	}
 
 	// new player joined
+	playerJoinedCount.Inc()
 	ch.cancelTimer()
 	ch.quorumPlayer[msg.From.ID] = true
 	if len(ch.quorumPlayer) == minQuorum {
@@ -256,6 +263,7 @@ func (b *fam100Bot) handleJoin(msg *bot.Message) bool {
 
 // handleJoin handles "/score" show top score for current channel
 func (b *fam100Bot) handleScore(msg *bot.Message) bool {
+	commandScoreCount.Inc()
 	chanID := msg.Chat.ID
 	rank, err := fam100.DefaultDB.ChannelRanking(chanID, 100)
 	if err != nil {
@@ -271,6 +279,7 @@ func (b *fam100Bot) handleScore(msg *bot.Message) bool {
 
 // handleChannelMigration handles if channel is migrated from group -> supergroup (telegram specific)
 func (b *fam100Bot) handleChannelMigration(msg *bot.ChannelMigratedMessage) bool {
+	channelMigratedCount.Inc()
 	chanID := msg.Chat.ID
 	if ch, exists := b.channels[chanID]; exists {
 		// TODO migrate channel score
@@ -293,22 +302,33 @@ func (b *fam100Bot) handleOutbox() {
 			return
 		case rawMsg := <-b.gameOut:
 
+			sent := true
 			switch msg := rawMsg.(type) {
 			default:
+				sent = false
 				// TODO: log error
 
 			case fam100.StateMessage:
 				switch msg.State {
 				case fam100.Started:
+					gameStartedCount.Inc()
 					text := fmt.Sprintf(fam100.T("Game dimulai, siapapun boleh menjawab tanpa `/join`"))
 					b.out <- bot.Message{Chat: bot.Chat{ID: msg.ChanID}, Text: text, Format: bot.Markdown}
 
 				case fam100.RoundStarted:
+					roundStartedCount.Inc()
 					text := fmt.Sprintf(fam100.T("Ronde %d dari %d"), msg.Round, fam100.RoundPerGame)
 					text += "\n\n" + formatRoundText(msg.RoundText)
 					b.out <- bot.Message{Chat: bot.Chat{ID: msg.ChanID}, Text: text, Format: bot.HTML}
 
+				case fam100.RoundFinished:
+					roundFinishedCount.Inc()
+
+				case fam100.RoundTimeout:
+					roundTimeoutCount.Inc()
+
 				case fam100.Finished:
+					gameFinishedCount.Inc()
 					finishedChan <- msg.ChanID
 					text := fmt.Sprintf(fam100.T("Game selesai!"))
 					b.out <- bot.Message{Chat: bot.Chat{ID: msg.ChanID}, Text: text, Format: bot.Markdown}
@@ -317,9 +337,11 @@ func (b *fam100Bot) handleOutbox() {
 			case fam100.QNAMessage:
 				text := formatRoundText(msg)
 				b.out <- bot.Message{Chat: bot.Chat{ID: msg.ChanID}, Text: text, Format: bot.HTML}
+				if !msg.ShowUnanswered {
+					answerCorrectCount.Inc()
+				}
 
 			case fam100.RankMessage:
-
 				text := formatRankText(msg.Rank)
 				if msg.Final {
 					text = fam100.T("Final score:") + text
@@ -336,6 +358,10 @@ func (b *fam100Bot) handleOutbox() {
 
 			case fam100.TextMessage:
 				b.out <- bot.Message{Chat: bot.Chat{ID: msg.ChanID}, Text: msg.Text}
+			}
+
+			if sent {
+				messageOutgoingCount.Inc()
 			}
 		}
 	}
