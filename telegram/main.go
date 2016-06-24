@@ -1,8 +1,6 @@
 package main
 
 import (
-	"bufio"
-	"bytes"
 	"flag"
 	"fmt"
 	"os"
@@ -21,6 +19,7 @@ var (
 	log                  zap.Logger
 	logLevel             int
 	minQuorum            = 3 // minimum players to start game
+	graphiteURL          = ""
 	quorumWait           = 120 * time.Second
 	telegramInBufferSize = 10000
 	gameInBufferSize     = 10000
@@ -44,6 +43,7 @@ func init() {
 func main() {
 	flag.StringVar(&botName, "botname", "fam100bot", "bot name")
 	flag.IntVar(&minQuorum, "quorum", 3, "minimal channel quorum")
+	flag.StringVar(&graphiteURL, "graphite", "", "graphite url, empty to disable")
 	logLevel := zap.LevelFlag("v", zap.InfoLevel, "log level: all, debug, info, warn, error, panic, fatal, none")
 	flag.Parse()
 
@@ -135,7 +135,7 @@ func (b *fam100Bot) handleInbox() {
 			if rawMsg == nil {
 				log.Fatal("handleInbox input channel is closed")
 			}
-			messageIncomingCount.Inc()
+			messageIncomingCount.Inc(1)
 			switch msg := rawMsg.(type) {
 			case *bot.ChannelMigratedMessage:
 				b.handleChannelMigration(msg)
@@ -149,7 +149,7 @@ func (b *fam100Bot) handleInbox() {
 				log.Debug("handleInbox got message", zap.Object("msg", msg))
 				msgType := msg.Chat.Type
 				if msgType == bot.Private {
-					messagePrivateCount.Inc()
+					messagePrivateCount.Inc(1)
 					// private message is not supported yet
 					log.Debug("Got private message", zap.Object("msg", msg))
 					continue
@@ -200,86 +200,9 @@ func (b *fam100Bot) handleInbox() {
 	}
 }
 
-// handleJoin handles "/join". Create game and start it if quorum
-func (b *fam100Bot) handleJoin(msg *bot.Message) bool {
-	commandJoinCount.Inc()
-	chanID := msg.Chat.ID
-	chanName := msg.Chat.Title
-	ch, ok := b.channels[chanID]
-	if !ok {
-		playerJoinedCount.Inc()
-		// create a new game
-		quorumPlayer := map[string]bool{msg.From.ID: true}
-
-		gameIn := make(chan fam100.Message, gameInBufferSize)
-		game, err := fam100.NewGame(chanID, chanName, gameIn, b.gameOut)
-		if err != nil {
-			log.Error("creating a game", zap.String("chanID", chanID))
-			return true
-		}
-
-		ch := &channel{ID: chanID, game: game, quorumPlayer: quorumPlayer}
-		b.channels[chanID] = ch
-		if len(ch.quorumPlayer) == minQuorum {
-			ch.game.Start()
-			return true
-		}
-		ch.startQuorumTimer(quorumWait, b.out)
-		text := fmt.Sprintf(
-			fam100.T("*%s* OK, butuh %d orang lagi, sisa waktu %s"),
-			msg.From.FullName(),
-			minQuorum-len(quorumPlayer),
-			quorumWait,
-		)
-		b.out <- bot.Message{Chat: bot.Chat{ID: chanID}, Text: text, Format: bot.Markdown}
-		log.Info("User joined", zap.String("playerID", msg.From.ID), zap.String("chanID", chanID))
-		return true
-	}
-
-	if ch.game.State != fam100.Created || ch.quorumPlayer[msg.From.ID] {
-		return true
-	}
-
-	// new player joined
-	playerJoinedCount.Inc()
-	ch.cancelTimer()
-	ch.quorumPlayer[msg.From.ID] = true
-	if len(ch.quorumPlayer) == minQuorum {
-		ch.game.Start()
-		return true
-	}
-	ch.startQuorumTimer(quorumWait, b.out)
-	text := fmt.Sprintf(
-		fam100.T("*%s* OK, butuh %d orang lagi, sisa waktu %s"),
-		msg.From.FullName(),
-		minQuorum-len(ch.quorumPlayer),
-		quorumWait,
-	)
-	b.out <- bot.Message{Chat: bot.Chat{ID: chanID}, Text: text, Format: bot.Markdown}
-	log.Info("User joined", zap.String("playerID", msg.From.ID), zap.String("chanID", chanID))
-
-	return false
-}
-
-// handleJoin handles "/score" show top score for current channel
-func (b *fam100Bot) handleScore(msg *bot.Message) bool {
-	commandScoreCount.Inc()
-	chanID := msg.Chat.ID
-	rank, err := fam100.DefaultDB.ChannelRanking(chanID, 100)
-	if err != nil {
-		log.Error("getting channel ranking failed", zap.String("chanID", chanID), zap.Error(err))
-		return true
-	}
-
-	text := "*Top Score:*" + formatRankText(rank)
-	b.out <- bot.Message{Chat: bot.Chat{ID: chanID}, Text: text, Format: bot.Markdown}
-
-	return true
-}
-
 // handleChannelMigration handles if channel is migrated from group -> supergroup (telegram specific)
 func (b *fam100Bot) handleChannelMigration(msg *bot.ChannelMigratedMessage) bool {
-	channelMigratedCount.Inc()
+	channelMigratedCount.Inc(1)
 	chanID := msg.Chat.ID
 	if ch, exists := b.channels[chanID]; exists {
 		// TODO migrate channel score
@@ -311,24 +234,24 @@ func (b *fam100Bot) handleOutbox() {
 			case fam100.StateMessage:
 				switch msg.State {
 				case fam100.Started:
-					gameStartedCount.Inc()
+					gameStartedCount.Inc(1)
 					text := fmt.Sprintf(fam100.T("Game dimulai, siapapun boleh menjawab tanpa `/join`"))
 					b.out <- bot.Message{Chat: bot.Chat{ID: msg.ChanID}, Text: text, Format: bot.Markdown}
 
 				case fam100.RoundStarted:
-					roundStartedCount.Inc()
+					roundStartedCount.Inc(1)
 					text := fmt.Sprintf(fam100.T("Ronde %d dari %d"), msg.Round, fam100.RoundPerGame)
 					text += "\n\n" + formatRoundText(msg.RoundText)
 					b.out <- bot.Message{Chat: bot.Chat{ID: msg.ChanID}, Text: text, Format: bot.HTML}
 
 				case fam100.RoundFinished:
-					roundFinishedCount.Inc()
+					roundFinishedCount.Inc(1)
 
 				case fam100.RoundTimeout:
-					roundTimeoutCount.Inc()
+					roundTimeoutCount.Inc(1)
 
 				case fam100.Finished:
-					gameFinishedCount.Inc()
+					gameFinishedCount.Inc(1)
 					finishedChan <- msg.ChanID
 					text := fmt.Sprintf(fam100.T("Game selesai!"))
 					b.out <- bot.Message{Chat: bot.Chat{ID: msg.ChanID}, Text: text, Format: bot.Markdown}
@@ -338,7 +261,7 @@ func (b *fam100Bot) handleOutbox() {
 				text := formatRoundText(msg)
 				b.out <- bot.Message{Chat: bot.Chat{ID: msg.ChanID}, Text: text, Format: bot.HTML}
 				if !msg.ShowUnanswered {
-					answerCorrectCount.Inc()
+					answerCorrectCount.Inc(1)
 				}
 
 			case fam100.RankMessage:
@@ -361,7 +284,7 @@ func (b *fam100Bot) handleOutbox() {
 			}
 
 			if sent {
-				messageOutgoingCount.Inc()
+				messageOutgoingCount.Inc(1)
 			}
 		}
 	}
@@ -401,48 +324,6 @@ func (c *channel) startQuorumTimer(wait time.Duration, out chan bot.Message) {
 			}
 		}
 	}()
-}
-
-func formatRoundText(msg fam100.QNAMessage) string {
-	var b bytes.Buffer
-	w := bufio.NewWriter(&b)
-
-	fmt.Fprintf(w, "[id: %d] %s?\n\n", msg.QuestionID, msg.QuestionText)
-	for i, a := range msg.Answers {
-		if a.Answered {
-			if a.Highlight {
-				fmt.Fprintf(w, "<b>%d. (%2d) %s \n  ✓ %s</b>\n", i+1, a.Score, a.Text, a.PlayerName)
-			} else {
-				fmt.Fprintf(w, "%d. (%2d) %s \n  ✓ <i>%s</i>\n", i+1, a.Score, a.Text, a.PlayerName)
-			}
-		} else {
-			if msg.ShowUnanswered {
-				fmt.Fprintf(w, "<b>%d. (%2d) %s \n</b>", i+1, a.Score, a.Text)
-			} else {
-				fmt.Fprintf(w, "%d. _________________________\n", i+1)
-			}
-		}
-	}
-	w.Flush()
-
-	return b.String()
-}
-
-func formatRankText(rank fam100.Rank) string {
-	var b bytes.Buffer
-	w := bufio.NewWriter(&b)
-
-	fmt.Fprintf(w, "\n")
-	if len(rank) == 0 {
-		fmt.Fprintf(w, fam100.T("Tidak ada"))
-	} else {
-		for i, ps := range rank {
-			fmt.Fprintf(w, "%d. (%2d) %s\n", i+1, ps.Score, ps.Name)
-		}
-	}
-	w.Flush()
-
-	return b.String()
 }
 
 func handleSignal() {
