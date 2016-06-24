@@ -158,11 +158,11 @@ func (b *fam100Bot) handleInbox() {
 				// ## Handle Commands ##
 				switch msg.Text {
 				case "/join", "/join@" + botName:
-					if b.handleJoin(msg) {
+					if b.cmdJoin(msg) {
 						continue
 					}
 				case "/score", "/score@" + botName:
-					if b.handleScore(msg) {
+					if b.cmdScore(msg) {
 						continue
 					}
 				}

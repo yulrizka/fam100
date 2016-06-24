@@ -11,7 +11,7 @@ import (
 )
 
 // handleJoin handles "/join". Create game and start it if quorum
-func (b *fam100Bot) handleJoin(msg *bot.Message) bool {
+func (b *fam100Bot) cmdJoin(msg *bot.Message) bool {
 	commandJoinCount.Inc(1)
 	chanID := msg.Chat.ID
 	chanName := msg.Chat.Title
@@ -72,7 +72,7 @@ func (b *fam100Bot) handleJoin(msg *bot.Message) bool {
 }
 
 // handleJoin handles "/score" show top score for current channel
-func (b *fam100Bot) handleScore(msg *bot.Message) bool {
+func (b *fam100Bot) cmdScore(msg *bot.Message) bool {
 	commandScoreCount.Inc(1)
 	chanID := msg.Chat.ID
 	rank, err := fam100.DefaultDB.ChannelRanking(chanID, 100)
