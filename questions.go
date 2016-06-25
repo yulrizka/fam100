@@ -25,11 +25,11 @@ var (
 type Question struct {
 	ID      int
 	Text    string
-	Answers []answer
+	Answers []Answer
 	lookup  map[string]int
 }
 
-type answer struct {
+type Answer struct {
 	ID    int
 	Text  []string
 	Score int
@@ -68,7 +68,7 @@ func InitQuestion(dbPath string) (numQuestion int, err error) {
 	return questionSize, nil
 }
 
-func (a answer) String() string {
+func (a Answer) String() string {
 	if len(a.Text) == 1 {
 		return a.Text[0]
 	}

@@ -106,7 +106,7 @@ func startGame() {
 
 		in := make(chan fam100.Message)
 		out := make(chan fam100.Message)
-		game, _ := fam100.NewGame("cli", in, out)
+		game, _ := fam100.NewGame("cli", "cli", in, out)
 		game.Start()
 
 		for {

@@ -270,13 +270,18 @@ type MemoryDB struct {
 func (m *MemoryDB) Reset() error                                                      { return nil }
 func (m *MemoryDB) Init() (err error)                                                 { return nil }
 func (m *MemoryDB) ChannelRanking(chanID string, limit int) (ranking Rank, err error) { return nil, nil }
+func (m *MemoryDB) ChannelCount() (total int, err error)                              { return 0, nil }
+func (m *MemoryDB) Channels() (channels map[string]string, err error)                 { return nil, nil }
+func (m *MemoryDB) ChannelConfigs(chanID string) (map[string]string, error)           { return nil, nil }
+func (m *MemoryDB) ChannelConfig(chanID, key, defaultValue string) (string, error)    { return "", nil }
+func (m *MemoryDB) PlayerCount() (total int, err error)                               { return 0, nil }
 func (m *MemoryDB) incStats(key string) error                                         { return nil }
 func (m *MemoryDB) incChannelStats(chanID, key string) error                          { return nil }
 func (m *MemoryDB) incPlayerStats(playerID PlayerID, key string) error                { return nil }
 func (m *MemoryDB) stats(key string) (interface{}, error)                             { return nil, nil }
 func (m *MemoryDB) channelStats(chanID, key string) (interface{}, error)              { return nil, nil }
 func (m *MemoryDB) playerStats(playerID, key string) (interface{}, error)             { return nil, nil }
-func (m *MemoryDB) saveScore(chanID string, scores Rank) error                        { return nil }
+func (m *MemoryDB) saveScore(chanID, chanName string, scores Rank) error              { return nil }
 func (m *MemoryDB) playerRanking(limit int) (Rank, error)                             { return nil, nil }
 func (m *MemoryDB) playerScore(playerID PlayerID) (ps playerScore, err error) {
 	return playerScore{}, nil

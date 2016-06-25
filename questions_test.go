@@ -30,7 +30,7 @@ func TestGetQuestion(t *testing.T) {
 
 func TestNextQuestion(t *testing.T) {
 	seed, played := int64(0), 0
-	_, err := NextQuestion(seed, played)
+	_, err := NextQuestion(seed, played, 10)
 	if err != nil {
 		t.Error(err)
 	}

@@ -19,7 +19,7 @@ func TestMain(m *testing.M) {
 
 func TestQuestionString(t *testing.T) {
 	var seed, totalRoundPlayed = 7, 0
-	r, err := newRound(int64(seed), totalRoundPlayed, make(map[PlayerID]Player))
+	r, err := newRound(int64(seed), totalRoundPlayed, make(map[PlayerID]Player), 10)
 	if err != nil {
 		t.Error(err)
 	}
