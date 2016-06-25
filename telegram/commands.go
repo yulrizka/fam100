@@ -4,6 +4,8 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
+	"regexp"
+	"strings"
 
 	"github.com/uber-go/zap"
 	"github.com/yulrizka/bot"
@@ -127,4 +129,87 @@ func formatRankText(rank fam100.Rank) string {
 	w.Flush()
 
 	return b.String()
+}
+
+// cmdSay handles /say [chan_id] [message]
+func (b *fam100Bot) cmdSay(msg *bot.Message) bool {
+	fields := strings.SplitN(msg.Text, " ", 3)
+	if len(fields) < 3 {
+		b.out <- bot.Message{Chat: bot.Chat{ID: msg.Chat.ID}, Text: "usage: `/say [chanID] [message]`", Format: bot.Markdown}
+		return true
+	}
+	chatID, text := fields[1], fields[2]
+	b.out <- bot.Message{Chat: bot.Chat{ID: chatID}, Text: text, Format: bot.Markdown}
+
+	return true
+}
+
+// cmdSay handles /channels [pattern]. empty pattern matches all
+func (b *fam100Bot) cmdChannels(msg *bot.Message) bool {
+	fields := strings.SplitN(msg.Text, " ", 2)
+	if len(fields) < 2 || fields[1] == "" {
+		b.out <- bot.Message{Chat: bot.Chat{ID: msg.Chat.ID}, Text: "usage: `/channels [regex pattern]`", Format: bot.Markdown}
+		return true
+	}
+
+	channels, err := fam100.DefaultDB.Channels()
+	if err != nil {
+		b.out <- bot.Message{Chat: bot.Chat{ID: msg.Chat.ID}, Text: "channels failed. " + err.Error(), Format: bot.Markdown}
+	}
+
+	// filter out by regex
+	r, err := regexp.Compile(fields[1])
+	if err != nil {
+		b.out <- bot.Message{Chat: bot.Chat{ID: msg.Chat.ID}, Text: "regex failed. " + err.Error(), Format: bot.Markdown}
+	}
+
+	results := make(map[string]string)
+	for id, desc := range channels {
+		if r.MatchString(desc) {
+			results[id] = desc
+		}
+	}
+
+	buf := bytes.NewBuffer(nil)
+	for id, desc := range results {
+		if r.MatchString(desc) {
+			buf.WriteString("\n")
+			buf.WriteString(id)
+			buf.WriteString(" ")
+			buf.WriteString(desc)
+		}
+	}
+
+	text := fmt.Sprintf("found %d channels:", len(results))
+	body := buf.String()
+	if len(body) > 3000 {
+		body = body[:3000]
+		body = body[:strings.LastIndex(body, "\n")]
+		body += "\n ... truncated"
+	}
+
+	b.out <- bot.Message{Chat: bot.Chat{ID: msg.Chat.ID}, Text: text + body, Format: bot.Text}
+
+	return true
+}
+
+// cmdBroadcast handles /broadcast [msg]. Broadcast message to all channels
+func (b *fam100Bot) cmdBroadcast(msg *bot.Message) bool {
+	fields := strings.SplitN(msg.Text, " ", 2)
+	if len(fields) < 2 || fields[1] == "" {
+		b.out <- bot.Message{Chat: bot.Chat{ID: msg.Chat.ID}, Text: "usage: `/broadcast [message]`", Format: bot.Markdown}
+		return true
+	}
+
+	channels, err := fam100.DefaultDB.Channels()
+	if err != nil {
+		b.out <- bot.Message{Chat: bot.Chat{ID: msg.Chat.ID}, Text: "channels failed. " + err.Error(), Format: bot.Markdown}
+	}
+
+	text := fields[1]
+	for id := range channels {
+		b.out <- bot.Message{Chat: bot.Chat{ID: id}, Text: text, Format: bot.Text}
+	}
+
+	return true
 }

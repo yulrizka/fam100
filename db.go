@@ -13,6 +13,7 @@ type db interface {
 	Init() (err error)
 	ChannelRanking(chanID string, limit int) (ranking Rank, err error)
 	ChannelCount() (total int, err error)
+	Channels() (channels map[string]string, err error)
 	PlayerCount() (total int, err error)
 
 	incStats(key string) error
@@ -92,6 +93,10 @@ func (r *RedisDB) Init() (err error) {
 
 func (r *RedisDB) ChannelCount() (total int, err error) {
 	return redis.Int(r.pool.Get().Do("HLEN", cNameKey))
+}
+
+func (r *RedisDB) Channels() (channels map[string]string, err error) {
+	return redis.StringMap(r.pool.Get().Do("HGETALL", cNameKey))
 }
 
 func (r *RedisDB) PlayerCount() (total int, err error) {

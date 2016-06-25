@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -28,6 +29,7 @@ var (
 	startedAt            time.Time
 	timeoutChan          = make(chan string, 10000)
 	finishedChan         = make(chan string, 10000)
+	adminID              = ""
 
 	// compiled time information
 	VERSION   = ""
@@ -42,6 +44,7 @@ func init() {
 
 func main() {
 	flag.StringVar(&botName, "botname", "fam100bot", "bot name")
+	flag.StringVar(&adminID, "admin", "", "admin id")
 	flag.IntVar(&minQuorum, "quorum", 3, "minimal channel quorum")
 	flag.StringVar(&graphiteURL, "graphite", "", "graphite url, empty to disable")
 	logLevel := zap.LevelFlag("v", zap.InfoLevel, "log level: all, debug, info, warn, error, panic, fatal, none")
@@ -150,8 +153,23 @@ func (b *fam100Bot) handleInbox() {
 				msgType := msg.Chat.Type
 				if msgType == bot.Private {
 					messagePrivateCount.Inc(1)
-					// private message is not supported yet
 					log.Debug("Got private message", zap.Object("msg", msg))
+					if msg.From.ID == adminID {
+						switch {
+						case strings.HasPrefix(msg.Text, "/say"):
+							if b.cmdSay(msg) {
+								continue
+							}
+						case strings.HasPrefix(msg.Text, "/channels"):
+							if b.cmdChannels(msg) {
+								continue
+							}
+						case strings.HasPrefix(msg.Text, "/broadcast"):
+							if b.cmdBroadcast(msg) {
+								continue
+							}
+						}
+					}
 					continue
 				}
 
