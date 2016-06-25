@@ -114,7 +114,7 @@ func (r *RedisDB) ChannelConfigs(chanID string) (configs map[string]string, err 
 func (r *RedisDB) ChannelConfig(chanID, key, defaultValue string) (config string, err error) {
 	configs, err := r.ChannelConfigs(chanID)
 	if err != nil {
-		return "", err
+		return defaultValue, err
 	}
 	if value := configs[key]; value != "" {
 		return value, nil

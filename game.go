@@ -2,6 +2,7 @@ package fam100
 
 import (
 	"sort"
+	"strconv"
 	"time"
 
 	"github.com/uber-go/zap"
@@ -13,6 +14,7 @@ var (
 	DelayBetweenRound    = 5 * time.Second
 	TickAfterWrongAnswer = false
 	RoundPerGame         = 3
+	DefaultQuestionLimit = 300
 	log                  zap.Logger
 )
 
@@ -166,7 +168,15 @@ func (g *Game) Start() {
 func (g *Game) startRound(currentRound int) error {
 	g.TotalRoundPlayed++
 	DefaultDB.incRoundPlayed(g.ChanID)
-	r, err := newRound(g.seed, g.TotalRoundPlayed, g.players)
+
+	questionLimit := DefaultQuestionLimit
+	if limitConf, err := DefaultDB.ChannelConfig(g.ChanID, "questionLimit", ""); err == nil && limitConf != "" {
+		if limit, err := strconv.ParseInt(limitConf, 10, 64); err == nil {
+			questionLimit = int(limit)
+		}
+	}
+
+	r, err := newRound(g.seed, g.TotalRoundPlayed, g.players, questionLimit)
 	if err != nil {
 		return err
 	}
@@ -180,7 +190,7 @@ func (g *Game) startRound(currentRound int) error {
 
 	// print question
 	g.Out <- StateMessage{ChanID: g.ChanID, State: RoundStarted, Round: currentRound, RoundText: r.questionText(g.ChanID, false)}
-	log.Info("Round Started", zap.String("chanID", g.ChanID))
+	log.Info("Round Started", zap.String("chanID", g.ChanID), zap.Int("questionLimit", questionLimit))
 
 	for {
 		select {
@@ -270,8 +280,8 @@ type round struct {
 	endAt   time.Time
 }
 
-func newRound(seed int64, totalRoundPlayed int, players map[PlayerID]Player) (*round, error) {
-	q, err := NextQuestion(seed, totalRoundPlayed)
+func newRound(seed int64, totalRoundPlayed int, players map[PlayerID]Player, questionLimit int) (*round, error) {
+	q, err := NextQuestion(seed, totalRoundPlayed, questionLimit)
 	if err != nil {
 		return nil, err
 	}

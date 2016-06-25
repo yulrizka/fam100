@@ -135,10 +135,13 @@ func (q Question) checkAnswer(text string) (correct bool, score, index int) {
 
 // NextQuestion generates next question randomly by taking into account
 // numbers of game played for particular seed key
-func NextQuestion(seed int64, played int) (q Question, err error) {
+func NextQuestion(seed int64, played int, questionLimit int) (q Question, err error) {
+	if questionLimit <= 0 || questionLimit > questionSize {
+		questionLimit = questionSize
+	}
 	r := rand.New(rand.NewSource(seed + ExtraQuestionSeed))
 	order := r.Perm(questionSize)
-	id := order[played%questionSize] + 1 // order is 0 based
+	id := order[played%questionLimit] + 1 // order is 0 based
 	idStr := strconv.FormatInt(int64(id), 10)
 
 	return GetQuestion(idStr)
