@@ -14,8 +14,12 @@ type db interface {
 	ChannelRanking(chanID string, limit int) (ranking Rank, err error)
 	ChannelCount() (total int, err error)
 	Channels() (channels map[string]string, err error)
+	ChannelConfigs(chanID string) (configs map[string]string, err error)
+	ChannelConfig(chanID, key, defaultValue string) (configs string, err error)
+
 	PlayerCount() (total int, err error)
 
+	// stats command
 	incStats(key string) error
 	incChannelStats(chanID, key string) error
 	incPlayerStats(playerID PlayerID, key string) error
@@ -26,6 +30,7 @@ type db interface {
 	nextGame(chanID string) (seed int64, nextRound int, err error)
 	incRoundPlayed(chanID string) error
 
+	// scores
 	saveScore(chanID, chanName string, scores Rank) error
 	playerRanking(limit int) (Rank, error)
 	playerScore(playerID PlayerID) (ps playerScore, err error)
@@ -36,7 +41,7 @@ var (
 	redisPrefix = "fam100"
 
 	gStatsKey, cStatsKey, pStatsKey, cRankKey, pNameKey, pRankKey string
-	cNameKey                                                      string
+	cNameKey, cConfigKey                                          string
 )
 
 var DefaultDB db
@@ -56,6 +61,8 @@ func SetRedisPrefix(prefix string) {
 	cNameKey = fmt.Sprintf("%s_chan_name", redisPrefix)
 	pNameKey = fmt.Sprintf("%s_player_name", redisPrefix)
 	pRankKey = fmt.Sprintf("%s_player_rank", redisPrefix)
+
+	cConfigKey = fmt.Sprintf("%s_chan_config_", redisPrefix)
 }
 
 type RedisDB struct {
@@ -97,6 +104,23 @@ func (r *RedisDB) ChannelCount() (total int, err error) {
 
 func (r *RedisDB) Channels() (channels map[string]string, err error) {
 	return redis.StringMap(r.pool.Get().Do("HGETALL", cNameKey))
+}
+
+func (r *RedisDB) ChannelConfigs(chanID string) (configs map[string]string, err error) {
+	rkey := fmt.Sprintf("%s%s", cConfigKey, chanID)
+	return redis.StringMap(r.pool.Get().Do("HGETALL", rkey))
+}
+
+func (r *RedisDB) ChannelConfig(chanID, key, defaultValue string) (config string, err error) {
+	configs, err := r.ChannelConfigs(chanID)
+	if err != nil {
+		return "", err
+	}
+	if value := configs[key]; value != "" {
+		return value, nil
+	}
+
+	return defaultValue, nil
 }
 
 func (r *RedisDB) PlayerCount() (total int, err error) {

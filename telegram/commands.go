@@ -14,6 +14,10 @@ import (
 
 // handleJoin handles "/join". Create game and start it if quorum
 func (b *fam100Bot) cmdJoin(msg *bot.Message) bool {
+	if b.handleDisabled(msg) {
+		return true
+	}
+
 	commandJoinCount.Inc(1)
 	chanID := msg.Chat.ID
 	chanName := msg.Chat.Title
@@ -75,6 +79,9 @@ func (b *fam100Bot) cmdJoin(msg *bot.Message) bool {
 
 // handleJoin handles "/score" show top score for current channel
 func (b *fam100Bot) cmdScore(msg *bot.Message) bool {
+	if b.handleDisabled(msg) {
+		return true
+	}
 	commandScoreCount.Inc(1)
 	chanID := msg.Chat.ID
 	rank, err := fam100.DefaultDB.ChannelRanking(chanID, 100)
@@ -87,6 +94,23 @@ func (b *fam100Bot) cmdScore(msg *bot.Message) bool {
 	b.out <- bot.Message{Chat: bot.Chat{ID: chanID}, Text: text, Format: bot.Markdown}
 
 	return true
+}
+
+func (b *fam100Bot) handleDisabled(msg *bot.Message) bool {
+	chanID := msg.Chat.ID
+	disabledMsg, err := fam100.DefaultDB.ChannelConfig(chanID, "disabled", "")
+	if err != nil {
+		log.Error("handleDisabled get config failed", zap.Error(err))
+		return false
+	}
+
+	if disabledMsg != "" {
+		log.Debug("channel is disabled", zap.String("chanID", chanID), zap.String("msg", disabledMsg))
+		b.out <- bot.Message{Chat: bot.Chat{ID: chanID}, Text: disabledMsg, Format: bot.Markdown}
+		return true
+	}
+
+	return false
 }
 
 func formatRoundText(msg fam100.QNAMessage) string {
