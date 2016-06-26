@@ -14,7 +14,7 @@ import (
 var (
 	// DB question database
 	DefaultQuestionDB QuestionDB
-	questionBucket    = []byte("questions")
+	QuestionBucket    = []byte("questions")
 
 	// Add to the existing seed
 	ExtraQuestionSeed = int64(0)
@@ -40,7 +40,7 @@ func (d *QuestionDB) Initialize(dbPath string) error {
 		return err
 	}
 	err = d.DB.Update(func(tx *bolt.Tx) error {
-		_, err := tx.CreateBucketIfNotExists(questionBucket)
+		_, err := tx.CreateBucketIfNotExists(QuestionBucket)
 		if err != nil {
 			return fmt.Errorf("create bucket: %s", err)
 		}
@@ -51,7 +51,7 @@ func (d *QuestionDB) Initialize(dbPath string) error {
 	}
 
 	err = d.DB.View(func(tx *bolt.Tx) error {
-		b := tx.Bucket(questionBucket)
+		b := tx.Bucket(QuestionBucket)
 		stats := b.Stats()
 		d.questionSize = stats.KeyN
 		return nil
@@ -79,7 +79,7 @@ func (d *QuestionDB) AddQuestion(q Question) error {
 	}
 
 	d.DB.Update(func(tx *bolt.Tx) error {
-		b := tx.Bucket(questionBucket)
+		b := tx.Bucket(QuestionBucket)
 		id := strconv.FormatInt(int64(q.ID), 10)
 		err := b.Put([]byte(id), buff.Bytes())
 		return err
@@ -94,7 +94,7 @@ func AddQuestion(q Question) error {
 
 func (d *QuestionDB) GetQuestion(id string) (q Question, err error) {
 	err = d.DB.View(func(tx *bolt.Tx) error {
-		b := tx.Bucket(questionBucket)
+		b := tx.Bucket(QuestionBucket)
 		v := b.Get([]byte(id))
 
 		buff := bytes.NewBuffer(v)
