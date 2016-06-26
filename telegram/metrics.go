@@ -36,7 +36,7 @@ func initMetrics(b fam100Bot) {
 	tick := time.Tick(gaugeInterval)
 	if graphiteURL != "" {
 		addr, err := net.ResolveTCPAddr("tcp", graphiteURL)
-		if err == nil {
+		if err != nil {
 			log.Error("failed initializing graphite", zap.Error(err))
 		} else {
 			go graphite.Graphite(metrics.DefaultRegistry, 10e9, "metrics", addr)

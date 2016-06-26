@@ -14,7 +14,7 @@ var (
 	DelayBetweenRound    = 5 * time.Second
 	TickAfterWrongAnswer = false
 	RoundPerGame         = 3
-	DefaultQuestionLimit = 300
+	DefaultQuestionLimit = 450
 	log                  zap.Logger
 )
 
