@@ -14,8 +14,8 @@ type db interface {
 	ChannelRanking(chanID string, limit int) (ranking Rank, err error)
 	ChannelCount() (total int, err error)
 	Channels() (channels map[string]string, err error)
-	ChannelConfigs(chanID string) (configs map[string]string, err error)
-	ChannelConfig(chanID, key, defaultValue string) (configs string, err error)
+	ChannelConfig(chanID, key, defaultValue string) (config string, err error)
+	GlobalConfig(key, defaultValue string) (config string, err error)
 
 	PlayerCount() (total int, err error)
 
@@ -41,7 +41,7 @@ var (
 	redisPrefix = "fam100"
 
 	gStatsKey, cStatsKey, pStatsKey, cRankKey, pNameKey, pRankKey string
-	cNameKey, cConfigKey                                          string
+	cNameKey, cConfigKey, gConfigKey                              string
 )
 
 var DefaultDB db
@@ -63,6 +63,7 @@ func SetRedisPrefix(prefix string) {
 	pRankKey = fmt.Sprintf("%s_player_rank", redisPrefix)
 
 	cConfigKey = fmt.Sprintf("%s_chan_config_", redisPrefix)
+	gConfigKey = fmt.Sprintf("%s_config", redisPrefix)
 }
 
 type RedisDB struct {
@@ -106,21 +107,26 @@ func (r *RedisDB) Channels() (channels map[string]string, err error) {
 	return redis.StringMap(r.pool.Get().Do("HGETALL", cNameKey))
 }
 
-func (r *RedisDB) ChannelConfigs(chanID string) (configs map[string]string, err error) {
-	rkey := fmt.Sprintf("%s%s", cConfigKey, chanID)
-	return redis.StringMap(r.pool.Get().Do("HGETALL", rkey))
-}
-
 func (r *RedisDB) ChannelConfig(chanID, key, defaultValue string) (config string, err error) {
-	configs, err := r.ChannelConfigs(chanID)
-	if err != nil {
+	rkey := fmt.Sprintf("%s%s", cConfigKey, chanID)
+	config, err = redis.String(r.pool.Get().Do("HGET", rkey, key))
+
+	if err != nil || config == "" {
 		return defaultValue, err
 	}
-	if value := configs[key]; value != "" {
-		return value, nil
+
+	return config, nil
+}
+
+func (r *RedisDB) GlobalConfig(key, defaultValue string) (config string, err error) {
+	rkey := gConfigKey
+	config, err = redis.String(r.pool.Get().Do("HGET", rkey, key))
+
+	if err != nil || config == "" {
+		return defaultValue, err
 	}
 
-	return defaultValue, nil
+	return config, nil
 }
 
 func (r *RedisDB) PlayerCount() (total int, err error) {
@@ -272,8 +278,8 @@ func (m *MemoryDB) Init() (err error)                                           
 func (m *MemoryDB) ChannelRanking(chanID string, limit int) (ranking Rank, err error) { return nil, nil }
 func (m *MemoryDB) ChannelCount() (total int, err error)                              { return 0, nil }
 func (m *MemoryDB) Channels() (channels map[string]string, err error)                 { return nil, nil }
-func (m *MemoryDB) ChannelConfigs(chanID string) (map[string]string, error)           { return nil, nil }
 func (m *MemoryDB) ChannelConfig(chanID, key, defaultValue string) (string, error)    { return "", nil }
+func (m *MemoryDB) GlobalConfig(key, defaultValue string) (string, error)             { return "", nil }
 func (m *MemoryDB) PlayerCount() (total int, err error)                               { return 0, nil }
 func (m *MemoryDB) incStats(key string) error                                         { return nil }
 func (m *MemoryDB) incChannelStats(chanID, key string) error                          { return nil }

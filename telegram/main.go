@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"math/rand"
 	"os"
 	"os/signal"
 	"strings"
@@ -272,6 +273,12 @@ func (b *fam100Bot) handleOutbox() {
 					gameFinishedCount.Inc(1)
 					finishedChan <- msg.ChanID
 					text := fmt.Sprintf(fam100.T("Game selesai!"))
+					motd, err := messageOfTheDay(msg.ChanID)
+					if err != nil {
+						log.Error("failed getting MOTD", zap.Error(err))
+					} else {
+						text = fmt.Sprintf("%s\n\n%s", text, motd)
+					}
 					b.out <- bot.Message{Chat: bot.Chat{ID: msg.ChanID}, Text: text, Format: bot.Markdown}
 				}
 
@@ -361,4 +368,17 @@ func handleSignal() {
 			log.Info("log level switched to", zap.String("level", log.Level().String()))
 		}
 	}()
+}
+
+func messageOfTheDay(chanID string) (string, error) {
+	msgStr, err := fam100.DefaultDB.ChannelConfig(chanID, "motd", "")
+	if err != nil || msgStr == "" {
+		msgStr, err = fam100.DefaultDB.GlobalConfig("motd", "")
+	}
+	if err != nil {
+		return "", err
+	}
+	messages := strings.Split(msgStr, ";")
+
+	return messages[rand.Intn(len(messages))], nil
 }
