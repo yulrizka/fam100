@@ -45,10 +45,10 @@ func main() {
 	}
 	defer func() {
 		if r := recover(); r != nil {
-			fam100.QuestionDB.Close()
+			fam100.DefaultQuestionDB.Close()
 			panic(r)
 		}
-		fam100.QuestionDB.Close()
+		fam100.DefaultQuestionDB.Close()
 	}()
 	fam100.RoundPerGame = n
 
