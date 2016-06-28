@@ -45,6 +45,7 @@ type logger struct {
 
 func (l logger) Error(msg string, fields ...zap.Field) {
 	l.Logger.Error(msg, fields...)
+	errorCount.Inc(1)
 }
 
 func init() {
