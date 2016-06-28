@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/garyburd/redigo/redis"
+	"github.com/rcrowley/go-metrics"
 )
 
 type db interface {
@@ -77,7 +78,6 @@ func (r *RedisDB) Reset() error {
 
 func (r *RedisDB) Init() (err error) {
 	r.pool = &redis.Pool{
-		MaxActive:   200,
 		MaxIdle:     3,
 		IdleTimeout: 240 * time.Second,
 		Dial: func() (redis.Conn, error) {
@@ -96,6 +96,14 @@ func (r *RedisDB) Init() (err error) {
 		return err
 	}
 	SetRedisPrefix(redisPrefix)
+
+	go func() {
+		redisConnCount := metrics.NewRegisteredGauge("redis.pool.count", metrics.DefaultRegistry)
+		tick := time.Tick(5 * time.Second)
+		for range tick {
+			redisConnCount.Update(int64(r.pool.ActiveCount()))
+		}
+	}()
 
 	return nil
 }

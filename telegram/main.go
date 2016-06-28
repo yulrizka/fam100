@@ -32,15 +32,23 @@ var (
 	timeoutChan          = make(chan string, 10000)
 	finishedChan         = make(chan string, 10000)
 	adminID              = ""
-	httpTimeout          = 5 * time.Second
+	httpTimeout          = 15 * time.Second
 
 	// compiled time information
 	VERSION   = ""
 	BUILDTIME = ""
 )
 
+type logger struct {
+	zap.Logger
+}
+
+func (l logger) Error(msg string, fields ...zap.Field) {
+	l.Logger.Error(msg, fields...)
+}
+
 func init() {
-	log = zap.NewJSON(zap.AddCaller(), zap.AddStacks(zap.FatalLevel))
+	log = logger{zap.NewJSON(zap.AddCaller(), zap.AddStacks(zap.FatalLevel))}
 	fam100.ExtraQuestionSeed = 1
 	fam100.RoundDuration = 90 * time.Second
 }
@@ -276,10 +284,8 @@ func (b *fam100Bot) handleOutbox() {
 					gameFinishedCount.Inc(1)
 					finishedChan <- msg.ChanID
 					text := fmt.Sprintf(fam100.T("Game selesai!"))
-					motd, err := messageOfTheDay(msg.ChanID)
-					if err != nil {
-						log.Error("failed getting MOTD", zap.Error(err))
-					} else {
+					motd, _ := messageOfTheDay(msg.ChanID)
+					if motd != "" {
 						text = fmt.Sprintf("%s\n\n%s", text, motd)
 					}
 					b.out <- bot.Message{Chat: bot.Chat{ID: msg.ChanID}, Text: text, Format: bot.Markdown}
