@@ -18,6 +18,7 @@ type db interface {
 	GlobalConfig(key, defaultValue string) (config string, err error)
 
 	PlayerCount() (total int, err error)
+	PlayerChannelScore(chanID string, playerID PlayerID) (PlayerScore, error)
 
 	// stats command
 	incStats(key string) error
@@ -33,8 +34,7 @@ type db interface {
 	// scores
 	saveScore(chanID, chanName string, scores Rank) error
 	playerRanking(limit int) (Rank, error)
-	playerScore(playerID PlayerID) (ps playerScore, err error)
-	playerChannelScore(chanID string, playerID PlayerID) (playerScore, error)
+	playerScore(playerID PlayerID) (ps PlayerScore, err error)
 }
 
 var (
@@ -77,6 +77,7 @@ func (r *RedisDB) Reset() error {
 
 func (r *RedisDB) Init() (err error) {
 	r.pool = &redis.Pool{
+		MaxActive:   200,
 		MaxIdle:     3,
 		IdleTimeout: 240 * time.Second,
 		Dial: func() (redis.Conn, error) {
@@ -219,7 +220,7 @@ func (r RedisDB) getRanking(key string, limit int) (ranking Rank, err error) {
 	ids = append(ids, pNameKey)
 	pos := 0
 	for len(values) > 0 {
-		var ps playerScore
+		var ps PlayerScore
 		values, err = redis.Scan(values, &ps.PlayerID, &ps.Score)
 		if err != nil {
 			return nil, err
@@ -244,15 +245,15 @@ func (r RedisDB) getRanking(key string, limit int) (ranking Rank, err error) {
 	return ranking, nil
 }
 
-func (r RedisDB) playerScore(playerID PlayerID) (ps playerScore, err error) {
+func (r RedisDB) playerScore(playerID PlayerID) (ps PlayerScore, err error) {
 	return r.getScore(pRankKey, playerID)
 }
 
-func (r RedisDB) playerChannelScore(chanID string, playerID PlayerID) (playerScore, error) {
+func (r RedisDB) PlayerChannelScore(chanID string, playerID PlayerID) (PlayerScore, error) {
 	return r.getScore(cRankKey+chanID, playerID)
 }
 
-func (r RedisDB) getScore(key string, playerID PlayerID) (ps playerScore, err error) {
+func (r RedisDB) getScore(key string, playerID PlayerID) (ps PlayerScore, err error) {
 	ps.PlayerID = playerID
 	if ps.Name, err = redis.String(r.pool.Get().Do("HGET", pNameKey, playerID)); err != nil {
 		return ps, err
@@ -289,11 +290,11 @@ func (m *MemoryDB) channelStats(chanID, key string) (interface{}, error)        
 func (m *MemoryDB) playerStats(playerID, key string) (interface{}, error)             { return nil, nil }
 func (m *MemoryDB) saveScore(chanID, chanName string, scores Rank) error              { return nil }
 func (m *MemoryDB) playerRanking(limit int) (Rank, error)                             { return nil, nil }
-func (m *MemoryDB) playerScore(playerID PlayerID) (ps playerScore, err error) {
-	return playerScore{}, nil
+func (m *MemoryDB) playerScore(playerID PlayerID) (ps PlayerScore, err error) {
+	return PlayerScore{}, nil
 }
-func (m *MemoryDB) playerChannelScore(chanID string, playerID PlayerID) (playerScore, error) {
-	return playerScore{}, nil
+func (m *MemoryDB) PlayerChannelScore(chanID string, playerID PlayerID) (PlayerScore, error) {
+	return PlayerScore{}, nil
 }
 
 func (m *MemoryDB) nextGame(chanID string) (seed int64, nextRound int, err error) {

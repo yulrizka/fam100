@@ -6,11 +6,15 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/uber-go/zap"
 	"github.com/yulrizka/bot"
 	"github.com/yulrizka/fam100"
 )
+
+// scoreRequestDelayDuration is time before we serve score command
+var scoreRequestDelayDuration = 10 * time.Second
 
 // handleJoin handles "/join". Create game and start it if quorum
 func (b *fam100Bot) cmdJoin(msg *bot.Message) bool {
@@ -82,9 +86,20 @@ func (b *fam100Bot) cmdScore(msg *bot.Message) bool {
 	if b.handleDisabled(msg) {
 		return true
 	}
+
+	ch, ok := b.channels[msg.Chat.ID]
+	if !ok {
+		return false
+	}
+	now := time.Now()
+	if ch.lastScoreRequest.Add(scoreRequestDelayDuration).After(now) {
+		return false
+	}
+	ch.lastScoreRequest = now
+
 	commandScoreCount.Inc(1)
 	chanID := msg.Chat.ID
-	rank, err := fam100.DefaultDB.ChannelRanking(chanID, 100)
+	rank, err := fam100.DefaultDB.ChannelRanking(chanID, 20)
 	if err != nil {
 		log.Error("getting channel ranking failed", zap.String("chanID", chanID), zap.Error(err))
 		return true
@@ -98,11 +113,7 @@ func (b *fam100Bot) cmdScore(msg *bot.Message) bool {
 
 func (b *fam100Bot) handleDisabled(msg *bot.Message) bool {
 	chanID := msg.Chat.ID
-	disabledMsg, err := fam100.DefaultDB.ChannelConfig(chanID, "disabled", "")
-	if err != nil {
-		log.Error("handleDisabled get config failed", zap.Error(err))
-		return false
-	}
+	disabledMsg, _ := fam100.DefaultDB.ChannelConfig(chanID, "disabled", "")
 
 	if disabledMsg != "" {
 		log.Debug("channel is disabled", zap.String("chanID", chanID), zap.String("msg", disabledMsg))
@@ -143,10 +154,16 @@ func formatRankText(rank fam100.Rank) string {
 	w := bufio.NewWriter(&b)
 
 	fmt.Fprintf(w, "\n")
+	//lastPos := 0
 	if len(rank) == 0 {
 		fmt.Fprintf(w, fam100.T("Tidak ada"))
 	} else {
 		for i, ps := range rank {
+			/*
+				if lastPos != 0 && lastPos+1 != ps.Position {
+					fmt.Fprintf(w, "...\n")
+				}
+			*/
 			fmt.Fprintf(w, "%d. (%2d) %s\n", i+1, ps.Score, ps.Name)
 		}
 	}

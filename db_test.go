@@ -74,7 +74,7 @@ func TestSaveScore(t *testing.T) {
 	}
 
 	// test playerChannelScore
-	ps, err = DefaultDB.playerChannelScore(chanID, pid)
+	ps, err = DefaultDB.PlayerChannelScore(chanID, pid)
 	if err != nil {
 		t.Error(err)
 	}

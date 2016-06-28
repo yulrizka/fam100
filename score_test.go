@@ -4,10 +4,10 @@ import "testing"
 
 func TestAdd(t *testing.T) {
 	r1 := make(Rank, 1)
-	r1[0] = playerScore{PlayerID: "a", Score: 1}
+	r1[0] = PlayerScore{PlayerID: "a", Score: 1}
 	r2 := make(Rank, 2)
-	r2[0] = playerScore{PlayerID: "a", Score: 2}
-	r2[1] = playerScore{PlayerID: "b", Score: 4}
+	r2[0] = PlayerScore{PlayerID: "a", Score: 2}
+	r2[1] = PlayerScore{PlayerID: "b", Score: 4}
 
 	r3 := r1.add(r2)
 	if want, got := 1, r1[0].Score; want != got {

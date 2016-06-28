@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"math/rand"
+	"net/http"
 	"os"
 	"os/signal"
 	"strings"
@@ -31,6 +32,7 @@ var (
 	timeoutChan          = make(chan string, 10000)
 	finishedChan         = make(chan string, 10000)
 	adminID              = ""
+	httpTimeout          = 5 * time.Second
 
 	// compiled time information
 	VERSION   = ""
@@ -61,6 +63,7 @@ func main() {
 	if key == "" {
 		log.Fatal("TELEGRAM_KEY can not be empty")
 	}
+	http.DefaultClient.Timeout = httpTimeout
 	handleSignal()
 
 	dbPath := "fam100.db"
@@ -293,6 +296,31 @@ func (b *fam100Bot) handleOutbox() {
 				text := formatRankText(msg.Rank)
 				if msg.Final {
 					text = fam100.T("Final score:") + text
+
+					/*
+						// show leader board, TOP 5 + current game players
+						rank, err := fam100.DefaultDB.ChannelRanking(msg.ChanID, 5)
+						if err != nil {
+							log.Error("getting channel ranking failed", zap.String("chanID", msg.ChanID), zap.Error(err))
+							continue
+						}
+						lookup := make(map[fam100.PlayerID]bool)
+						for _, v := range rank {
+							lookup[v.PlayerID] = true
+						}
+						for _, v := range msg.Rank {
+							if !lookup[v.PlayerID] {
+								playerScore, err := fam100.DefaultDB.PlayerChannelScore(msg.ChanID, v.PlayerID)
+								if err != nil {
+									continue
+								}
+
+								rank = append(rank, playerScore)
+							}
+						}
+						sort.Sort(rank)
+						text += "\nTotal Score" + formatRankText(rank)
+					*/
 				} else {
 					text = fam100.T("Score sementara:") + text
 				}
@@ -317,11 +345,12 @@ func (b *fam100Bot) handleOutbox() {
 
 // channel represents channels chat rooms
 type channel struct {
-	ID           string
-	game         *fam100.Game
-	quorumPlayer map[string]bool
-	startedAt    time.Time
-	cancelTimer  context.CancelFunc
+	ID               string
+	game             *fam100.Game
+	quorumPlayer     map[string]bool
+	startedAt        time.Time
+	cancelTimer      context.CancelFunc
+	lastScoreRequest time.Time
 }
 
 func (c *channel) startQuorumTimer(wait time.Duration, out chan bot.Message) {

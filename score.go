@@ -2,21 +2,21 @@ package fam100
 
 import "sort"
 
-type playerScore struct {
+type PlayerScore struct {
 	PlayerID PlayerID
 	Name     string
 	Score    int
 	Position int
 }
 
-type Rank []playerScore
+type Rank []PlayerScore
 
 func (r Rank) Len() int           { return len(r) }
 func (r Rank) Swap(i, j int)      { r[i], r[j] = r[j], r[i] }
 func (r Rank) Less(i, j int) bool { return r[i].Score > r[j].Score }
 
 func (r Rank) add(source Rank) Rank {
-	lookup := make(map[PlayerID]playerScore)
+	lookup := make(map[PlayerID]PlayerScore)
 	for _, v := range r {
 		lookup[v.PlayerID] = v
 	}
@@ -36,5 +36,8 @@ func (r Rank) add(source Rank) Rank {
 		result = append(result, v)
 	}
 	sort.Sort(result)
+	for i := 0; i < len(result); i++ {
+		result[i].Position = i + 1
+	}
 	return result
 }

@@ -341,12 +341,12 @@ func (r *round) finised() bool {
 // ranking generates a rank for current round which contains player, answers and score
 func (r *round) ranking() Rank {
 	var roundScores Rank
-	lookup := make(map[PlayerID]playerScore)
+	lookup := make(map[PlayerID]PlayerScore)
 	for i, pID := range r.correct {
 		if pID != "" {
 			score := r.q.Answers[i].Score
 			if ps, ok := lookup[pID]; !ok {
-				lookup[pID] = playerScore{
+				lookup[pID] = PlayerScore{
 					PlayerID: pID,
 					Name:     r.players[pID].Name,
 					Score:    score,
