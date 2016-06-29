@@ -72,7 +72,10 @@ type RedisDB struct {
 }
 
 func (r *RedisDB) Reset() error {
-	_, err := r.pool.Get().Do("FLUSHALL")
+	conn := r.pool.Get()
+	defer conn.Close()
+
+	_, err := conn.Do("FLUSHALL")
 	return err
 }
 
@@ -109,16 +112,23 @@ func (r *RedisDB) Init() (err error) {
 }
 
 func (r *RedisDB) ChannelCount() (total int, err error) {
-	return redis.Int(r.pool.Get().Do("HLEN", cNameKey))
+	conn := r.pool.Get()
+	defer conn.Close()
+	return redis.Int(conn.Do("HLEN", cNameKey))
 }
 
 func (r *RedisDB) Channels() (channels map[string]string, err error) {
-	return redis.StringMap(r.pool.Get().Do("HGETALL", cNameKey))
+	conn := r.pool.Get()
+	defer conn.Close()
+	return redis.StringMap(conn.Do("HGETALL", cNameKey))
 }
 
 func (r *RedisDB) ChannelConfig(chanID, key, defaultValue string) (config string, err error) {
+	conn := r.pool.Get()
+	defer conn.Close()
+
 	rkey := fmt.Sprintf("%s%s", cConfigKey, chanID)
-	config, err = redis.String(r.pool.Get().Do("HGET", rkey, key))
+	config, err = redis.String(conn.Do("HGET", rkey, key))
 
 	if err != nil || config == "" {
 		return defaultValue, err
@@ -128,8 +138,11 @@ func (r *RedisDB) ChannelConfig(chanID, key, defaultValue string) (config string
 }
 
 func (r *RedisDB) GlobalConfig(key, defaultValue string) (config string, err error) {
+	conn := r.pool.Get()
+	defer conn.Close()
+
 	rkey := gConfigKey
-	config, err = redis.String(r.pool.Get().Do("HGET", rkey, key))
+	config, err = redis.String(conn.Do("HGET", rkey, key))
 
 	if err != nil || config == "" {
 		return defaultValue, err
@@ -139,7 +152,10 @@ func (r *RedisDB) GlobalConfig(key, defaultValue string) (config string, err err
 }
 
 func (r *RedisDB) PlayerCount() (total int, err error) {
-	return redis.Int(r.pool.Get().Do("HLEN", pNameKey))
+	conn := r.pool.Get()
+	defer conn.Close()
+
+	return redis.Int(conn.Do("HLEN", pNameKey))
 }
 
 func (r *RedisDB) nextGame(chanID string) (seed int64, nextRound int, err error) {
@@ -160,39 +176,57 @@ func (r *RedisDB) nextGame(chanID string) (seed int64, nextRound int, err error)
 }
 
 func (r RedisDB) incStats(key string) error {
+	conn := r.pool.Get()
+	defer conn.Close()
+
 	rkey := fmt.Sprintf("%s%s", gStatsKey, key)
-	_, err := r.pool.Get().Do("INCR", rkey)
+	_, err := conn.Do("INCR", rkey)
 
 	return err
 }
 
 func (r RedisDB) incChannelStats(chanID, key string) error {
+	conn := r.pool.Get()
+	defer conn.Close()
+
 	rkey := fmt.Sprintf("%s%s_%s", cStatsKey, key, chanID)
-	_, err := r.pool.Get().Do("INCR", rkey)
+	_, err := conn.Do("INCR", rkey)
 
 	return err
 }
 
 func (r RedisDB) incPlayerStats(playerID PlayerID, key string) error {
+	conn := r.pool.Get()
+	defer conn.Close()
+
 	rkey := fmt.Sprintf("%s%s_%s", pStatsKey, key, playerID)
-	_, err := r.pool.Get().Do("INCR", rkey)
+	_, err := conn.Do("INCR", rkey)
 
 	return err
 }
 
 func (r RedisDB) stats(key string) (interface{}, error) {
+	conn := r.pool.Get()
+	defer conn.Close()
+
 	rkey := fmt.Sprintf("%s%s", gStatsKey, key)
-	return r.pool.Get().Do("GET", rkey)
+	return conn.Do("GET", rkey)
 }
 
 func (r RedisDB) channelStats(chanID, key string) (interface{}, error) {
+	conn := r.pool.Get()
+	defer conn.Close()
+
 	rkey := fmt.Sprintf("%s%s_%s", cStatsKey, key, chanID)
-	return r.pool.Get().Do("GET", rkey)
+	return conn.Do("GET", rkey)
 }
 
 func (r RedisDB) playerStats(playerID, key string) (interface{}, error) {
+	conn := r.pool.Get()
+	defer conn.Close()
+
 	rkey := fmt.Sprintf("%s%s_%s", pStatsKey, key, playerID)
-	return r.pool.Get().Do("GET", rkey)
+	return conn.Do("GET", rkey)
 }
 
 func (r *RedisDB) incRoundPlayed(chanID string) error {
@@ -201,6 +235,7 @@ func (r *RedisDB) incRoundPlayed(chanID string) error {
 
 func (r RedisDB) saveScore(chanID, chanName string, scores Rank) error {
 	conn := r.pool.Get()
+	defer conn.Close()
 	for _, score := range scores {
 		conn.Send("HSET", cNameKey, chanID, chanName)
 		conn.Send("HSET", pNameKey, score.PlayerID, score.Name)
@@ -219,7 +254,10 @@ func (r RedisDB) playerRanking(limit int) (Rank, error) {
 }
 
 func (r RedisDB) getRanking(key string, limit int) (ranking Rank, err error) {
-	values, err := redis.Values(r.pool.Get().Do("ZREVRANGE", key, 0, limit, "WITHSCORES"))
+	conn := r.pool.Get()
+	defer conn.Close()
+
+	values, err := redis.Values(conn.Do("ZREVRANGE", key, 0, limit, "WITHSCORES"))
 	if err != nil {
 		return nil, err
 	}
@@ -241,7 +279,7 @@ func (r RedisDB) getRanking(key string, limit int) (ranking Rank, err error) {
 
 	// get all name
 	if len(ranking) > 0 {
-		names, err := redis.Strings(r.pool.Get().Do("HMGET", ids...))
+		names, err := redis.Strings(conn.Do("HMGET", ids...))
 		if err != nil {
 			return nil, err
 		}
@@ -262,14 +300,17 @@ func (r RedisDB) PlayerChannelScore(chanID string, playerID PlayerID) (PlayerSco
 }
 
 func (r RedisDB) getScore(key string, playerID PlayerID) (ps PlayerScore, err error) {
+	conn := r.pool.Get()
+	defer conn.Close()
+
 	ps.PlayerID = playerID
-	if ps.Name, err = redis.String(r.pool.Get().Do("HGET", pNameKey, playerID)); err != nil {
+	if ps.Name, err = redis.String(conn.Do("HGET", pNameKey, playerID)); err != nil {
 		return ps, err
 	}
-	if ps.Score, err = redis.Int(r.pool.Get().Do("ZSCORE", key, playerID)); err != nil {
+	if ps.Score, err = redis.Int(conn.Do("ZSCORE", key, playerID)); err != nil {
 		return ps, err
 	}
-	if ps.Position, err = redis.Int(r.pool.Get().Do("ZRANK", key, playerID)); err != nil {
+	if ps.Position, err = redis.Int(conn.Do("ZRANK", key, playerID)); err != nil {
 		return ps, err
 	}
 
