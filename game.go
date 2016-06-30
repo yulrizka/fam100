@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/patrickmn/go-cache"
 	"github.com/rcrowley/go-metrics"
 	"github.com/uber-go/zap"
 )
@@ -19,10 +20,17 @@ var (
 	log                  zap.Logger
 
 	gameMsgProcessTimer = metrics.NewRegisteredTimer("game.processedMessage", metrics.DefaultRegistry)
+	playerActive        = metrics.NewRegisteredGauge("player.active", metrics.DefaultRegistry)
+	playerActiveMap     = cache.New(5*time.Minute, 30*time.Second)
 )
 
 func init() {
 	log = zap.NewJSON()
+	go func() {
+		for range time.Tick(30 * time.Second) {
+			playerActive.Update(int64(playerActiveMap.ItemCount()))
+		}
+	}()
 }
 
 func SetLogger(l zap.Logger) {
@@ -205,6 +213,7 @@ func (g *Game) startRound(currentRound int) error {
 				continue
 			}
 
+			playerActiveMap.Set(string(msg.Player.ID), struct{}{}, cache.DefaultExpiration)
 			log.Debug("startRound got message", zap.String("chanID", g.ChanID), zap.Object("msg", msg))
 			answer := msg.Text
 			correct, alreadyAnswered, idx := r.answer(msg.Player, answer)

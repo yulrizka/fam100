@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/cyberdelia/go-metrics-graphite"
-	"github.com/patrickmn/go-cache"
 	"github.com/rcrowley/go-metrics"
 	"github.com/uber-go/zap"
 	"github.com/yulrizka/fam100"
@@ -35,8 +34,6 @@ var (
 	channelTotal    = metrics.NewRegisteredGauge("channel.total", metrics.DefaultRegistry)
 	playerTotal     = metrics.NewRegisteredGauge("player.total", metrics.DefaultRegistry)
 	gameActiveTotal = metrics.NewRegisteredGauge("game.active.total", metrics.DefaultRegistry)
-	playerActive    = metrics.NewRegisteredGauge("player.active", metrics.DefaultRegistry)
-	playerActiveMap = cache.New(5*time.Minute, 30*time.Second)
 
 	// golang metrics
 	alloc        = metrics.NewRegisteredGauge("memory.alloc", metrics.DefaultRegistry)
@@ -87,7 +84,6 @@ func initMetrics(b fam100Bot) {
 			}
 
 			gameActiveTotal.Update(int64(len(b.channels)))
-			playerActive.Update(int64(playerActiveMap.ItemCount()))
 		}
 	}()
 
