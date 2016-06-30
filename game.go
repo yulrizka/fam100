@@ -19,7 +19,6 @@ var (
 	log                  zap.Logger
 
 	gameMsgProcessTimer = metrics.NewRegisteredTimer("game.processedMessage", metrics.DefaultRegistry)
-	playerAcriveGauge   = metrics.NewRegisteredGauge("player.active", metrics.DefaultRegistry)
 )
 
 func init() {
@@ -386,7 +385,6 @@ func (r *round) answer(p Player, text string) (correct, answered bool, index int
 	}
 
 	if _, ok := r.players[p.ID]; !ok {
-		playerAcriveGauge.Update(int64(len(r.players)))
 		r.players[p.ID] = p
 	}
 	if correct, _, i := r.q.checkAnswer(text); correct {

@@ -13,6 +13,7 @@ import (
 
 	"golang.org/x/net/context"
 
+	"github.com/patrickmn/go-cache"
 	"github.com/uber-go/zap"
 	"github.com/yulrizka/bot"
 	"github.com/yulrizka/fam100"
@@ -163,6 +164,7 @@ func (b *fam100Bot) handleInbox() {
 					continue
 				}
 				log.Debug("handleInbox got message", zap.Object("msg", msg))
+				playerActiveMap.Set(msg.From.ID, struct{}{}, cache.DefaultExpiration)
 				msgType := msg.Chat.Type
 				if msgType == bot.Private {
 					messagePrivateCount.Inc(1)
