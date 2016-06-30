@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/rcrowley/go-metrics"
 	"github.com/uber-go/zap"
 )
 
@@ -16,6 +17,9 @@ var (
 	RoundPerGame         = 3
 	DefaultQuestionLimit = 450
 	log                  zap.Logger
+
+	gameMsgProcessTimer = metrics.NewRegisteredTimer("game.processedMessage", metrics.DefaultRegistry)
+	playerAcriveGauge   = metrics.NewRegisteredGauge("player.active", metrics.DefaultRegistry)
 )
 
 func init() {
@@ -195,11 +199,13 @@ func (g *Game) startRound(currentRound int) error {
 	for {
 		select {
 		case rawMsg := <-g.In: // new answer coming from player
+			started := time.Now()
 			msg, ok := rawMsg.(TextMessage)
 			if !ok {
 				log.Error("Unexpected message type input from client")
 				continue
 			}
+
 			log.Debug("startRound got message", zap.String("chanID", g.ChanID), zap.Object("msg", msg))
 			answer := msg.Text
 			correct, alreadyAnswered, idx := r.answer(msg.Player, answer)
@@ -207,10 +213,12 @@ func (g *Game) startRound(currentRound int) error {
 				if TickAfterWrongAnswer {
 					g.Out <- WrongAnswerMessage{ChanID: g.ChanID, TimeLeft: r.timeLeft()}
 				}
+				gameMsgProcessTimer.UpdateSince(started)
 				continue
 			}
 			if alreadyAnswered {
 				log.Debug("already answered", zap.String("chanID", g.ChanID), zap.String("by", string(r.correct[idx])))
+				gameMsgProcessTimer.UpdateSince(started)
 				continue
 			}
 
@@ -236,9 +244,11 @@ func (g *Game) startRound(currentRound int) error {
 				log.Info("Round finished", zap.String("chanID", g.ChanID), zap.Bool("timeout", false))
 				DefaultDB.incStats("round_finished")
 				DefaultDB.incChannelStats(g.ChanID, "round_finished")
+				gameMsgProcessTimer.UpdateSince(started)
 
 				return nil
 			}
+			gameMsgProcessTimer.UpdateSince(started)
 
 		case <-timeLeftTick.C: // inform time left
 			select {
@@ -375,13 +385,16 @@ func (r *round) answer(p Player, text string) (correct, answered bool, index int
 		return false, false, -1
 	}
 
+	if _, ok := r.players[p.ID]; !ok {
+		playerAcriveGauge.Update(int64(len(r.players)))
+		r.players[p.ID] = p
+	}
 	if correct, _, i := r.q.checkAnswer(text); correct {
 		if r.correct[i] != "" {
 			// already answered
 			return correct, true, i
 		}
 		r.correct[i] = p.ID
-		r.players[p.ID] = p
 
 		return correct, false, i
 	}
