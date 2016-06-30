@@ -16,6 +16,8 @@ import (
 // scoreRequestDelayDuration is time before we serve score command
 var scoreRequestDelayDuration = 10 * time.Second
 
+var lastScoreRequest = make(map[string]time.Time)
+
 // handleJoin handles "/join". Create game and start it if quorum
 func (b *fam100Bot) cmdJoin(msg *bot.Message) bool {
 	if b.handleDisabled(msg) {
@@ -87,15 +89,12 @@ func (b *fam100Bot) cmdScore(msg *bot.Message) bool {
 		return true
 	}
 
-	ch, ok := b.channels[msg.Chat.ID]
-	if !ok {
-		return false
-	}
 	now := time.Now()
-	if ch.lastScoreRequest.Add(scoreRequestDelayDuration).After(now) {
+	if lastTime, ok := lastScoreRequest[msg.Chat.ID]; ok &&
+		now.Before(lastTime.Add(scoreRequestDelayDuration)) {
 		return false
 	}
-	ch.lastScoreRequest = now
+	lastScoreRequest[msg.Chat.ID] = now
 
 	commandScoreCount.Inc(1)
 	chanID := msg.Chat.ID

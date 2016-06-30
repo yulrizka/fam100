@@ -352,12 +352,11 @@ func (b *fam100Bot) handleOutbox() {
 
 // channel represents channels chat rooms
 type channel struct {
-	ID               string
-	game             *fam100.Game
-	quorumPlayer     map[string]bool
-	startedAt        time.Time
-	cancelTimer      context.CancelFunc
-	lastScoreRequest time.Time
+	ID           string
+	game         *fam100.Game
+	quorumPlayer map[string]bool
+	startedAt    time.Time
+	cancelTimer  context.CancelFunc
 }
 
 func (c *channel) startQuorumTimer(wait time.Duration, out chan bot.Message) {
