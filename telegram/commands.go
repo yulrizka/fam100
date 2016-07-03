@@ -246,10 +246,13 @@ func (b *fam100Bot) cmdBroadcast(msg *bot.Message) bool {
 		b.out <- bot.Message{Chat: bot.Chat{ID: msg.Chat.ID}, Text: "channels failed. " + err.Error(), Format: bot.Markdown}
 	}
 
-	text := fields[1]
-	for id := range channels {
-		b.out <- bot.Message{Chat: bot.Chat{ID: id}, Text: text, Format: bot.Text}
-	}
+	go func() {
+		text := fields[1]
+		for id := range channels {
+			b.out <- bot.Message{Chat: bot.Chat{ID: id}, Text: text, Format: bot.Text}
+			time.Sleep(1 * time.Second)
+		}
+	}()
 
 	return true
 }
