@@ -104,8 +104,8 @@ func (b *fam100Bot) cmdScore(msg *bot.Message) bool {
 		return true
 	}
 
-	text := "*Top Score:*" + formatRankText(rank)
-	b.out <- bot.Message{Chat: bot.Chat{ID: chanID}, Text: text, Format: bot.Markdown}
+	text := "Top Score:" + formatRankText(rank)
+	b.out <- bot.Message{Chat: bot.Chat{ID: chanID}, Text: text, Format: bot.Text}
 
 	return true
 }
