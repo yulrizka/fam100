@@ -256,6 +256,9 @@ func (r RedisDB) playerRanking(limit int) (Rank, error) {
 func (r RedisDB) getRanking(key string, limit int) (ranking Rank, err error) {
 	conn := r.pool.Get()
 	defer conn.Close()
+	if limit == 0 {
+		limit = -1
+	}
 
 	values, err := redis.Values(conn.Do("ZREVRANGE", key, 0, limit, "WITHSCORES"))
 	if err != nil {

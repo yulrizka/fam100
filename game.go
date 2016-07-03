@@ -281,7 +281,7 @@ func (g *Game) startRound(currentRound int) error {
 }
 
 func (g *Game) updateRanking(r Rank) {
-	g.rank = g.rank.add(r)
+	g.rank = g.rank.Add(r)
 	DefaultDB.saveScore(g.ChanID, g.ChanName, r)
 }
 
