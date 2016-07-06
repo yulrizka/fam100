@@ -1,0 +1,109 @@
+---
+layout: default
+---
+<div>
+  <select id="weekSelect"></select>
+</div>
+<div>
+  <i>Last updated</i><span id="lastUpdated"></span>
+</div>
+<div id="scores"></div>
+
+<script type="text/javascript" charset="utf-8">
+  $(function() {
+
+    var params={};window.location.search.replace(/[?&]+([^=&]+)=([^&]*)/gi,function(str,key,value){params[key] = value;});
+    var defaultChanID = "-100023534";
+    var scoreData = {};
+    var re = /(\d+)-(\d+)/;
+
+    function getScore(chanID) {
+      chanID = chanID.replace("-","!");
+
+      $.ajax({
+        url: "/fam100/scores/" + chanID + ".json",
+        dataType: 'json',
+        success: function( data ) {
+          loadScore(data);
+        },
+        error: function( data ) {
+          $("#scores").text("no data");
+          console.log(status);
+        }
+      });
+    }
+
+    function loadScore(data) {
+      $("#lastUpdated").text(data.lastUpdated);
+      scoreData["total"] = data.total;
+      for (i in data.rank) {
+        scoreData[i] = data.rank[i];
+      }
+
+      $('#weekSelect').empty()
+      .append($("<option></option>")
+      .attr("value", "total")
+      .text("Total"));
+
+      $.each(data.rank, function(key) {
+        var matches = key.match(re),
+        year = matches[1],
+        week = matches[2];
+
+        var startDate = getDateOfISOWeek(week, year);
+        var endDate = new Date(startDate);
+        endDate.setDate(endDate.getDate() + 6);
+        var dateInfo = key + " : " +startDate.toLocaleDateString() + " - " + endDate.toLocaleDateString();
+
+        $('#weekSelect').append($("<option></option>")
+        .attr("value", key)
+        .text(dateInfo));
+      });
+
+      show("total");
+    }
+
+    function show(week) {
+      var table = $('<table><tr><th>#</th><th>Nama</th><th>Score</th></tr></table>')
+      $('#scores').empty()
+      var rank = scoreData[week];
+
+      if (rank == null) {
+        console.log("rank is null");
+        return;
+      }
+
+      for (i in rank) {
+        var tr = $("<tr></tr>");
+        var r = rank[i];
+        tr.append('<td>' + r.position + '</td>');
+        tr.append('<td>' + r.name + '</td>');
+        tr.append('<td>' + r.score + '</td>');
+        table.append(tr)
+      }
+      $('#scores').html(table)
+    }
+
+    $("#weekSelect").on("change", function() {
+      show($("#weekSelect").val());
+    });
+
+    function getDateOfISOWeek(w, y) {
+      var simple = new Date(y, 0, 1 + (w - 1) * 7);
+      var dow = simple.getDay();
+      var ISOweekStart = simple;
+      if (dow <= 4)
+        ISOweekStart.setDate(simple.getDate() - simple.getDay() + 1);
+      else
+        ISOweekStart.setDate(simple.getDate() + 8 - simple.getDay());
+      return ISOweekStart;
+    }
+
+    // Main
+    var chanID = params.c;
+    if (typeof chanID == "undefined" || chanID === "") {
+      chanID = defaultChanID;
+    }
+    getScore(chanID);
+  });
+</script>
