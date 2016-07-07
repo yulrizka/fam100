@@ -21,14 +21,15 @@ var (
 )
 
 type scoreFile struct {
-	ChanID string                 `json:"chanID"`
-	Total  fam100.Rank            `json:"total"`
-	Rank   map[string]fam100.Rank `json:"rank"`
+	ChanID      string                 `json:"chanID"`
+	LastUpdated string                 `json:"lastUpdated"`
+	Total       fam100.Rank            `json:"total"`
+	Rank        map[string]fam100.Rank `json:"rank"`
 }
 
 func (sf scoreFile) write() error {
 	fileName := path.Join(outdir, sf.ChanID) + ".json"
-	fileName = strings.Replace(fileName, "-", "_", -1)
+	fileName = strings.Replace(fileName, "-", "!", -1)
 	file, err := os.OpenFile(fileName, os.O_CREATE|os.O_TRUNC|os.O_RDWR, 0600)
 	if err != nil {
 		log.Fatal(err)
@@ -57,6 +58,7 @@ func main() {
 		week = overrideWeek
 	}
 	currentWeekKey := fmt.Sprintf("%d-%d", year, week)
+	lastUpdated := time.Now().Format(time.RFC3339)
 
 	// get all score from redis
 	conn, err := redis.Dial("tcp", ":6379")
@@ -106,6 +108,7 @@ func main() {
 		sf.ChanID = chanID
 		sf.Total = total
 		sf.Rank[currentWeekKey] = currentWeek
+		sf.LastUpdated = lastUpdated
 		if err := sf.write(); err != nil {
 			log.Fatal(err)
 		}
@@ -121,7 +124,7 @@ func main() {
 
 func readFile(chanID string) (scoreFile, error) {
 	fileName := path.Join(outdir, chanID) + ".json"
-	fileName = strings.Replace(fileName, "-", "_", -1)
+	fileName = strings.Replace(fileName, "-", "!", -1)
 	file, err := os.Open(fileName)
 	if err != nil {
 		log.Printf("WARNING: chanID:%s,  %s, crating new file", chanID, err)
