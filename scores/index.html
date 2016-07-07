@@ -1,6 +1,9 @@
 ---
 layout: default
 ---
+<h1>Scores</h1>
+
+<div id="chanName"></div>
 <div>
   <select id="weekSelect"></select>
 </div>
@@ -8,23 +11,30 @@ layout: default
   <i>Last updated</i><span id="lastUpdated"></span>
 </div>
 <div id="scores"></div>
+<div>
+  <i>Nama channel tidak ditampilkan untuk alasan privasi</i>
+</div>
 
 <script type="text/javascript" charset="utf-8">
   $(function() {
 
     var params={};window.location.search.replace(/[?&]+([^=&]+)=([^&]*)/gi,function(str,key,value){params[key] = value;});
-    var defaultChanID = "-100023534";
+    var defaultChanID = "!1001061896269";
     var scoreData = {};
     var re = /(\d+)-(\d+)/;
 
     function getScore(chanID) {
       chanID = chanID.replace("-","!");
+      $("#chanName").empty();
 
       $.ajax({
         url: "/fam100/scores/" + chanID + ".json",
         dataType: 'json',
         success: function( data ) {
           loadScore(data);
+          if (chanID === defaultChanID) {
+            $("#chanName").html("<h2>#famili100</h2>");
+          }
         },
         error: function( data ) {
           $("#scores").text("no data");
