@@ -28,7 +28,7 @@ layout: default
       $("#chanName").empty();
 
       $.ajax({
-        url: "/fam100/scores/" + chanID + ".json",
+        url: "/fam100scores/scores/" + chanID + ".json",
         dataType: 'json',
         success: function( data ) {
           loadScore(data);
