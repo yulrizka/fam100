@@ -301,7 +301,7 @@ func (b *fam100Bot) handleOutbox() {
 				if msg.Final {
 					text = fam100.T("<b>Final score</b>:") + text
 
-					// show leader board, TOP 5 + current game players
+					// show leader board, TOP 3 + current game players
 					rank, err := fam100.DefaultDB.ChannelRanking(msg.ChanID, 3)
 					if err != nil {
 						log.Error("getting channel ranking failed", zap.String("chanID", msg.ChanID), zap.Error(err))

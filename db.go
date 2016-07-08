@@ -246,7 +246,7 @@ func (r RedisDB) saveScore(chanID, chanName string, scores Rank) error {
 }
 
 func (r RedisDB) ChannelRanking(chanID string, limit int) (ranking Rank, err error) {
-	return r.getRanking(cRankKey+chanID, limit)
+	return r.getRanking(cRankKey+chanID, limit-1)
 }
 
 func (r RedisDB) playerRanking(limit int) (Rank, error) {
