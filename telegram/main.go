@@ -303,6 +303,7 @@ func (b *fam100Bot) handleOutbox() {
 				text := formatRankText(msg.Rank)
 				if msg.Final {
 					text = fam100.T("Final score:") + text
+					text += fmt.Sprintf("<a href=\"http://labs.yulrizka.com/fam100/scores.html?c=%s\">Full Scores</a>", msg.ChanID)
 
 					/*
 						// show leader board, TOP 5 + current game players

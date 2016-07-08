@@ -104,8 +104,9 @@ func (b *fam100Bot) cmdScore(msg *bot.Message) bool {
 		return true
 	}
 
-	text := "Top Score:" + formatRankText(rank)
-	b.out <- bot.Message{Chat: bot.Chat{ID: chanID}, Text: text, Format: bot.Text}
+	text := "<b>Top Score:</b><br/>" + formatRankText(rank)
+	text += fmt.Sprintf("<a href=\"http://labs.yulrizka.com/fam100/scores.html?c=%s\">Full Scores</a>", chanID)
+	b.out <- bot.Message{Chat: bot.Chat{ID: chanID}, Text: text, Format: bot.HTML}
 
 	return true
 }
@@ -158,12 +159,7 @@ func formatRankText(rank fam100.Rank) string {
 		fmt.Fprintf(w, fam100.T("Tidak ada"))
 	} else {
 		for i, ps := range rank {
-			/*
-				if lastPos != 0 && lastPos+1 != ps.Position {
-					fmt.Fprintf(w, "...\n")
-				}
-			*/
-			fmt.Fprintf(w, "%d. (%2d) %s\n", i+1, ps.Score, ps.Name)
+			fmt.Fprintf(w, "%d. (%2d) %s<br/>", i+1, ps.Score, ps.Name)
 		}
 	}
 	w.Flush()
