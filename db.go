@@ -250,13 +250,13 @@ func (r RedisDB) ChannelRanking(chanID string, limit int) (ranking Rank, err err
 }
 
 func (r RedisDB) playerRanking(limit int) (Rank, error) {
-	return r.getRanking(pRankKey, limit)
+	return r.getRanking(pRankKey, limit-1)
 }
 
 func (r RedisDB) getRanking(key string, limit int) (ranking Rank, err error) {
 	conn := r.pool.Get()
 	defer conn.Close()
-	if limit == 0 {
+	if limit <= 0 {
 		limit = -1
 	}
 
