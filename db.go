@@ -313,7 +313,7 @@ func (r RedisDB) getScore(key string, playerID PlayerID) (ps PlayerScore, err er
 	if ps.Score, err = redis.Int(conn.Do("ZSCORE", key, playerID)); err != nil {
 		return ps, err
 	}
-	if ps.Position, err = redis.Int(conn.Do("ZRANK", key, playerID)); err != nil {
+	if ps.Position, err = redis.Int(conn.Do("ZREVRANK", key, playerID)); err != nil {
 		return ps, err
 	}
 

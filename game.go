@@ -11,7 +11,7 @@ import (
 )
 
 var (
-	RoundDuration        = 60 * time.Second
+	RoundDuration        = 90 * time.Second
 	tickDuration         = 10 * time.Second
 	DelayBetweenRound    = 5 * time.Second
 	TickAfterWrongAnswer = false

@@ -104,8 +104,8 @@ func (b *fam100Bot) cmdScore(msg *bot.Message) bool {
 		return true
 	}
 
-	text := "<b>Top Score:</b><br/>" + formatRankText(rank)
-	text += fmt.Sprintf("<a href=\"http://labs.yulrizka.com/fam100/scores.html?c=%s\">Full Scores</a>", chanID)
+	text := "<b>Top Score:</b>\n" + formatRankText(rank)
+	text += fmt.Sprintf("\n<a href=\"http://labs.yulrizka.com/fam100/scores.html?c=%s\">Full Score</a>", chanID)
 	b.out <- bot.Message{Chat: bot.Chat{ID: chanID}, Text: text, Format: bot.HTML}
 
 	return true
@@ -154,17 +154,29 @@ func formatRankText(rank fam100.Rank) string {
 	w := bufio.NewWriter(&b)
 
 	fmt.Fprintf(w, "\n")
-	//lastPos := 0
+	lastPos := 0
 	if len(rank) == 0 {
-		fmt.Fprintf(w, fam100.T("Tidak ada"))
+		fmt.Fprintf(w, fam100.T("Tidak ada\n"))
 	} else {
-		for i, ps := range rank {
-			fmt.Fprintf(w, "%d. (%2d) %s<br/>", i+1, ps.Score, ps.Name)
+		for _, ps := range rank {
+			if lastPos != 0 && lastPos+1 != ps.Position {
+				fmt.Fprintf(w, "...\n")
+			}
+			fmt.Fprintf(w, "%d. (%2d) %s\n", ps.Position, ps.Score, ps.Name)
+			lastPos = ps.Position
 		}
 	}
 	w.Flush()
 
-	return b.String()
+	return escape(b.String())
+}
+
+func escape(s string) string {
+	s = strings.Replace(s, "&", "&amp;", -1)
+	s = strings.Replace(s, "<", "&lt;", -1)
+	s = strings.Replace(s, ">", "&gt;", -1)
+
+	return s
 }
 
 // cmdSay handles /say [chan_id] [message]

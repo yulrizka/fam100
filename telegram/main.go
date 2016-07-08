@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"sort"
 	"strings"
 	"syscall"
 	"time"
@@ -33,6 +34,7 @@ var (
 	finishedChan         = make(chan string, 10000)
 	adminID              = ""
 	httpTimeout          = 15 * time.Second
+	roundDuration        = 90
 
 	// compiled time information
 	VERSION   = ""
@@ -51,7 +53,6 @@ func (l logger) Error(msg string, fields ...zap.Field) {
 func init() {
 	log = logger{zap.NewJSON(zap.AddCaller(), zap.AddStacks(zap.FatalLevel))}
 	fam100.ExtraQuestionSeed = 1
-	fam100.RoundDuration = 90 * time.Second
 }
 
 func main() {
@@ -59,6 +60,7 @@ func main() {
 	flag.StringVar(&adminID, "admin", "", "admin id")
 	flag.IntVar(&minQuorum, "quorum", 3, "minimal channel quorum")
 	flag.StringVar(&graphiteURL, "graphite", "", "graphite url, empty to disable")
+	flag.IntVar(&roundDuration, "roundDuration", 90, "round duration in second")
 	logLevel := zap.LevelFlag("v", zap.InfoLevel, "log level: all, debug, info, warn, error, panic, fatal, none")
 	flag.Parse()
 
@@ -73,6 +75,7 @@ func main() {
 		log.Fatal("TELEGRAM_KEY can not be empty")
 	}
 	http.DefaultClient.Timeout = httpTimeout
+	fam100.RoundDuration = time.Duration(roundDuration) * time.Second
 	handleSignal()
 
 	dbPath := "fam100.db"
@@ -284,12 +287,6 @@ func (b *fam100Bot) handleOutbox() {
 				case fam100.Finished:
 					gameFinishedCount.Inc(1)
 					finishedChan <- msg.ChanID
-					text := fmt.Sprintf(fam100.T("Game selesai!"))
-					motd, _ := messageOfTheDay(msg.ChanID)
-					if motd != "" {
-						text = fmt.Sprintf("%s\n\n%s", text, motd)
-					}
-					b.out <- bot.Message{Chat: bot.Chat{ID: msg.ChanID}, Text: text, Format: bot.Markdown}
 				}
 
 			case fam100.QNAMessage:
@@ -302,33 +299,37 @@ func (b *fam100Bot) handleOutbox() {
 			case fam100.RankMessage:
 				text := formatRankText(msg.Rank)
 				if msg.Final {
-					text = fam100.T("Final score:") + text
-					text += fmt.Sprintf("<a href=\"http://labs.yulrizka.com/fam100/scores.html?c=%s\">Full Scores</a>", msg.ChanID)
+					text = fam100.T("<b>Final score</b>:") + text
 
-					/*
-						// show leader board, TOP 5 + current game players
-						rank, err := fam100.DefaultDB.ChannelRanking(msg.ChanID, 5)
-						if err != nil {
-							log.Error("getting channel ranking failed", zap.String("chanID", msg.ChanID), zap.Error(err))
-							continue
-						}
-						lookup := make(map[fam100.PlayerID]bool)
-						for _, v := range rank {
-							lookup[v.PlayerID] = true
-						}
-						for _, v := range msg.Rank {
-							if !lookup[v.PlayerID] {
-								playerScore, err := fam100.DefaultDB.PlayerChannelScore(msg.ChanID, v.PlayerID)
-								if err != nil {
-									continue
-								}
-
-								rank = append(rank, playerScore)
+					// show leader board, TOP 5 + current game players
+					rank, err := fam100.DefaultDB.ChannelRanking(msg.ChanID, 5)
+					if err != nil {
+						log.Error("getting channel ranking failed", zap.String("chanID", msg.ChanID), zap.Error(err))
+						continue
+					}
+					lookup := make(map[fam100.PlayerID]bool)
+					for _, v := range rank {
+						lookup[v.PlayerID] = true
+					}
+					for _, v := range msg.Rank {
+						if !lookup[v.PlayerID] {
+							playerScore, err := fam100.DefaultDB.PlayerChannelScore(msg.ChanID, v.PlayerID)
+							if err != nil {
+								continue
 							}
+
+							rank = append(rank, playerScore)
 						}
-						sort.Sort(rank)
-						text += "\nTotal Score" + formatRankText(rank)
-					*/
+					}
+					sort.Sort(rank)
+					text += "\n<b>Total Score</b>" + formatRankText(rank)
+
+					text += fmt.Sprintf("\n<a href=\"http://labs.yulrizka.com/fam100/scores.html?c=%s\">Full Score</a>\n", msg.ChanID)
+					text += fmt.Sprintf(fam100.T("\nGame selesai!"))
+					motd, _ := messageOfTheDay(msg.ChanID)
+					if motd != "" {
+						text = fmt.Sprintf("%s\n\n%s", text, motd)
+					}
 				} else {
 					text = fam100.T("Score sementara:") + text
 				}
