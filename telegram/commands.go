@@ -48,12 +48,12 @@ func (b *fam100Bot) cmdJoin(msg *bot.Message) bool {
 		}
 		ch.startQuorumTimer(quorumWait, b.out)
 		text := fmt.Sprintf(
-			fam100.T("*%s* OK, butuh %d orang lagi, sisa waktu %s"),
-			msg.From.FullName(),
+			fam100.T("<b>%s</b> OK, butuh %d orang lagi, sisa waktu %s"),
+			escape(msg.From.FullName()),
 			minQuorum-len(quorumPlayer),
 			quorumWait,
 		)
-		b.out <- bot.Message{Chat: bot.Chat{ID: chanID}, Text: text, Format: bot.Markdown}
+		b.out <- bot.Message{Chat: bot.Chat{ID: chanID}, Text: text, Format: bot.HTML}
 		log.Info("User joined", zap.String("playerID", msg.From.ID), zap.String("chanID", chanID))
 		return true
 	}
@@ -72,12 +72,12 @@ func (b *fam100Bot) cmdJoin(msg *bot.Message) bool {
 	}
 	ch.startQuorumTimer(quorumWait, b.out)
 	text := fmt.Sprintf(
-		fam100.T("*%s* OK, butuh %d orang lagi, sisa waktu %s"),
-		msg.From.FullName(),
+		fam100.T("<b>%s</b> OK, butuh %d orang lagi, sisa waktu %s"),
+		escape(msg.From.FullName()),
 		minQuorum-len(ch.quorumPlayer),
 		quorumWait,
 	)
-	b.out <- bot.Message{Chat: bot.Chat{ID: chanID}, Text: text, Format: bot.Markdown}
+	b.out <- bot.Message{Chat: bot.Chat{ID: chanID}, Text: text, Format: bot.HTML}
 	log.Info("User joined", zap.String("playerID", msg.From.ID), zap.String("chanID", chanID))
 
 	return false
@@ -132,13 +132,13 @@ func formatRoundText(msg fam100.QNAMessage) string {
 	for i, a := range msg.Answers {
 		if a.Answered {
 			if a.Highlight {
-				fmt.Fprintf(w, "<b>%d. (%2d) %s \n  ✓ %s</b>\n", i+1, a.Score, a.Text, a.PlayerName)
+				fmt.Fprintf(w, "<b>%d. (%2d) %s \n  ✓ %s</b>\n", i+1, a.Score, escape(a.Text), escape(a.PlayerName))
 			} else {
-				fmt.Fprintf(w, "%d. (%2d) %s \n  ✓ <i>%s</i>\n", i+1, a.Score, a.Text, a.PlayerName)
+				fmt.Fprintf(w, "%d. (%2d) %s \n  ✓ <i>%s</i>\n", i+1, a.Score, escape(a.Text), escape(a.PlayerName))
 			}
 		} else {
 			if msg.ShowUnanswered {
-				fmt.Fprintf(w, "<b>%d. (%2d) %s \n</b>", i+1, a.Score, a.Text)
+				fmt.Fprintf(w, "<b>%d. (%2d) %s \n</b>", i+1, a.Score, escape(a.Text))
 			} else {
 				fmt.Fprintf(w, "%d. _________________________\n", i+1)
 			}
