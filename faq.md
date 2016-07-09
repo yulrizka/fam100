@@ -45,18 +45,21 @@ Pesan anda masih harus dikirimkan ke server telegram, sementara pesan orang lain
 dan dikirimkan ke semua orang dalam grup tersebut.
 
 Hal ini akan terasa terutama apabila anda berada dalam koneksi yang kurang stabil atau lambat.
+<br/><br/>
 
 ### Bagaimana cara menambahkan soal?
 Coming soon.
+<br/><br/>
 
 ### Saya menemukan error, salah eja dan ingin melaporkan masalah
 
 Silahkan laporkan masalah pada channel [famili100dev]. Post screenshot permasalahan anda pada channel tersebut.
+<br/><br/>
 
 ### Ada orang yang berlaku tidak baik di #famili100
 
 Silahkan laporkan masalah pada channel [famili100dev]. Post screenshot permasalahan anda pada channel tersebut.
-
+<br/><br/>
 
 ### Bagaimana cara membuat bot seperti ini
 
@@ -67,6 +70,7 @@ Source code dapat ditemukan pada [https://github.com/yulrizka/fam100](https://gi
 
 Apabila anda menambahkan ingin berkontribusi, anda dapat melihat [daftar issue](https://github.com/yulrizka/fam100/issues)
 atau berbicara di group [famili100dev]
+<br/><br/>
 
 [telegram]: https://telegram.org/ "Telegram"
 [fam100bot]: http://telegram.me/fam100bo://telegram.me/fam100bot "@fam100bot"
