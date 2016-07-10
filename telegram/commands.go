@@ -13,10 +13,10 @@ import (
 	"github.com/yulrizka/fam100"
 )
 
-// scoreRequestDelayDuration is time before we serve score command
-var scoreRequestDelayDuration = 10 * time.Second
+// cmdRateDelay is time before we serve score command
+var cmdRateDelay = 10 * time.Second
 
-var lastScoreRequest = make(map[string]time.Time)
+var lastCmdRequest = make(map[string]time.Time)
 
 // handleJoin handles "/join". Create game and start it if quorum
 func (b *fam100Bot) cmdJoin(msg *bot.Message) bool {
@@ -83,18 +83,29 @@ func (b *fam100Bot) cmdJoin(msg *bot.Message) bool {
 	return false
 }
 
+func (b *fam100Bot) cmdHelp(msg *bot.Message) bool {
+	if b.handleDisabled(msg) {
+		return true
+	}
+
+	if rateLimited("help", msg.Chat.ID, cmdRateDelay) {
+		return true
+	}
+	text := `Cara bermain, menambahkan bot ke group sendiri dapat dilihat di <a href="http://labs.yulrizka.com/fam100/faq.html">F.A.Q</a>`
+	b.out <- bot.Message{Chat: bot.Chat{ID: msg.Chat.ID}, Text: text, Format: bot.HTML}
+
+	return true
+}
+
 // handleJoin handles "/score" show top score for current channel
 func (b *fam100Bot) cmdScore(msg *bot.Message) bool {
 	if b.handleDisabled(msg) {
 		return true
 	}
 
-	now := time.Now()
-	if lastTime, ok := lastScoreRequest[msg.Chat.ID]; ok &&
-		now.Before(lastTime.Add(scoreRequestDelayDuration)) {
-		return false
+	if rateLimited("score", msg.Chat.ID, cmdRateDelay) {
+		return true
 	}
-	lastScoreRequest[msg.Chat.ID] = now
 
 	commandScoreCount.Inc(1)
 	chanID := msg.Chat.ID
@@ -263,4 +274,17 @@ func (b *fam100Bot) cmdBroadcast(msg *bot.Message) bool {
 	}()
 
 	return true
+}
+
+// rateLimited returns true if call should be ignored becasue of the rate limit
+func rateLimited(cmd, chatID string, duration time.Duration) bool {
+
+	now := time.Now()
+	if lastTime, ok := lastCmdRequest[chatID]; ok &&
+		now.Before(lastTime.Add(duration)) {
+		return true
+	}
+
+	lastCmdRequest[chatID] = now
+	return false
 }

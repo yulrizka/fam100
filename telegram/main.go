@@ -199,6 +199,10 @@ func (b *fam100Bot) handleInbox() {
 					if b.cmdScore(msg) {
 						continue
 					}
+				case "/help", "/help@" + botName:
+					if b.cmdHelp(msg) {
+						continue
+					}
 				}
 
 				chanID := msg.Chat.ID
