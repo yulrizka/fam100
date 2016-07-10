@@ -4,11 +4,11 @@ date: 2016-07-04
 title:  "Mau ikutan bantuin famili100"
 ---
 
-Mau ikutan bantuin meyusun atau menambah pertanyaan? Yuk gabung jadi operator
+Mau ikutan bantuin menyusun atau menambah pertanyaan? Yuk gabung jadi operator.
 
 ### Harus ngapain aja ?
 
-* Mengusulkan pertanyaa dan atau jawaban.
+* Mengusulkan pertanyaan dan atau jawaban.
 * Mensortir dan memilah pertanyaan dan jawaban yang ada.
 * Membetulkan pertanyaan atau jawaban yang salah eja
 <br/><br/>
@@ -17,9 +17,9 @@ Mau ikutan bantuin meyusun atau menambah pertanyaan? Yuk gabung jadi operator
 
 Basically *nothing* :) selain:
 
-* Kepuasan soal yang kamu bikin / perbaiki di mainkan olah lebih dari 30.000 pengguna di 6000 channel
-* Nama kamu bakal dimasukan di list kontributor di web ini
-* Beberapa dari operator akan memiliki akses lebih
+* Kepuasan soal yang kamu bikin / perbaiki di mainkan olah lebih dari 30.000 pengguna di 6000 channel.
+* Nama kamu bakal dimasukan di list kontributor di web ini.
+* Beberapa dari operator akan memiliki akses lebih.
 <br/><br/>
 
 ### Apa jumlah operator di batasi?
@@ -35,12 +35,12 @@ Nope, semua bersifat sukarela dan untuk kesenangan bersama. Kamu boleh mulai dan
 ### Bagaimana cara ikutan?
 
 1. Isi form [http://goo.gl/forms/ZSpa9amCwlvscK2c2](http://goo.gl/forms/ZSpa9amCwlvscK2c2)
-2. Pastikan anda mengisi alamat email dengan benar, karena apabila terpilih kamu bakal dikirimkan info selanjutnya
+2. Pastikan kamu mengisi alamat email dengan benar, karena apabila terpilih kamu bakal dikirimkan info selanjutnya
 <br/><br/>
 
 ### Saya ga pingin jadi operator tapi pengen nyumbang beberapa pertanyaan
 
-Gunakan form berikut [http://goo.gl/forms/UumNjnYnyYye6ARe2]()
+Gunakan form berikut [http://goo.gl/forms/UumNjnYnyYye6ARe2](http://goo.gl/forms/UumNjnYnyYye6ARe2)
 
 Jika tidak ingin, kamu tidak perlu menginkutsertakan jawaban. Namun bila ingin, mohon cantumkan minimal 4 jawaban.
 
