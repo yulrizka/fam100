@@ -6,6 +6,7 @@ layout: default
 
 * [Bagai mana cara bermain game famili 100?](#bagai-mana-cara-bermain-game-famili-100)
 * [Bagai mana cara menambahkan bot di group sendiri?](#bagai-mana-cara-menambahkan-bot-di-group-sendiri)
+* [Bagaimana cara keluar group](#bagaimana-cara-keluar-group)
 * [Kadang saya menjawab duluan tetapi orang lain yang mendapatkan point](#kadang-saya-menjawab-duluan-tetapi-orang-lain-yang-mendapatkan-point)
 * [Bagaimana cara menambahkan soal?](#bagaimana-cara-menambahkan-soal)
 * [Saya menemukan error, salah eja dan ingin melaporkan masalah](#saya-menemukan-error-salah-eja-dan-ingin-melaporkan-masalah)
@@ -37,6 +38,11 @@ Menambahkan bot dapat dilakukan dengan 2 cara.
 
 Bot bisa digunakan di group _private_ maupun _public_
 <br/><br/>
+
+### Bagaimana cara keluar group
+
+1. Tap pada Judul group
+2. Cari menu "Leave group"
 
 ### Kadang saya menjawab duluan tetapi orang lain yang mendapatkan point
 
