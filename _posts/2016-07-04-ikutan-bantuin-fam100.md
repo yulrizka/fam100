@@ -1,5 +1,5 @@
 ---
-layout: post
+layout: default
 date: 2016-07-04
 title:  "Mau ikutan bantuin famili100"
 ---
