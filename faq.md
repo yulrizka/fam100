@@ -43,6 +43,7 @@ Bot bisa digunakan di group _private_ maupun _public_
 
 1. Tap pada Judul group
 2. Cari menu "Leave group"
+<br/><br/>
 
 ### Kadang saya menjawab duluan tetapi orang lain yang mendapatkan point
 
