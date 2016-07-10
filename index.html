@@ -5,7 +5,7 @@ layout: default
   {% for post in site.posts %}
   <li>
   <h1>{{ post.title }}</h1>
-    {{ post.date |  date: '%d %B %d %Y' }}
+    {{ post.date |  date: '%d %B %Y' }}
     <hr/>
     {{ post.content }}
   </li>
