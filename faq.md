@@ -55,7 +55,8 @@ Hal ini akan terasa terutama apabila anda berada dalam koneksi yang kurang stabi
 <br/><br/>
 
 ### Bagaimana cara menambahkan soal?
-Coming soon.
+
+Baca [disini](http://labs.yulrizka.com/fam100/2016/07/04/ikutan-bantuin-fam100.html)
 <br/><br/>
 
 ### Saya menemukan error, salah eja dan ingin melaporkan masalah

@@ -4,7 +4,7 @@ date: 2016-07-04
 title:  "Mau ikutan bantuin famili100"
 ---
 
-Mau ikutan bantuin menyusun atau menambah pertanyaan? Yuk gabung jadi operator.
+Mau ikutan bantuin menyusun atau menambah pertanyaan? Yuk gabung jadi kontributor.
 
 ### Harus ngapain aja ?
 
@@ -19,10 +19,10 @@ Basically *nothing* :) selain:
 
 * Kepuasan soal yang kamu bikin / perbaiki di mainkan olah lebih dari 30.000 pengguna di 6000 channel.
 * Nama kamu bakal dimasukan di list kontributor di web ini.
-* Beberapa dari operator akan memiliki akses lebih.
+* Beberapa dari kontributor akan memiliki akses lebih.
 <br/><br/>
 
-### Apa jumlah operator di batasi?
+### Apa jumlah kontributor di batasi?
 
 Untuk saat ini ya.
 <br/><br/>
@@ -38,7 +38,7 @@ Nope, semua bersifat sukarela dan untuk kesenangan bersama. Kamu boleh mulai dan
 2. Pastikan kamu mengisi alamat email dengan benar, karena apabila terpilih kamu bakal dikirimkan info selanjutnya
 <br/><br/>
 
-### Saya ga pingin jadi operator tapi pengen nyumbang beberapa pertanyaan
+### Saya ga pingin jadi kontributor tapi pengen nyumbang beberapa pertanyaan saja
 
 Gunakan form berikut [http://goo.gl/forms/UumNjnYnyYye6ARe2](http://goo.gl/forms/UumNjnYnyYye6ARe2)
 
