@@ -16,7 +16,7 @@ var (
 	DelayBetweenRound    = 5 * time.Second
 	TickAfterWrongAnswer = false
 	RoundPerGame         = 3
-	DefaultQuestionLimit = 450
+	DefaultQuestionLimit = 600
 	log                  zap.Logger
 
 	gameMsgProcessTimer = metrics.NewRegisteredTimer("game.processedMessage", metrics.DefaultRegistry)
