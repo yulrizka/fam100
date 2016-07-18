@@ -20,6 +20,7 @@ var (
 	log                  zap.Logger
 
 	gameMsgProcessTimer = metrics.NewRegisteredTimer("game.processedMessage", metrics.DefaultRegistry)
+	gameServiceTimer    = metrics.NewRegisteredTimer("game.serviceTimeNS", metrics.DefaultRegistry)
 	playerActive        = metrics.NewRegisteredGauge("player.active", metrics.DefaultRegistry)
 	playerActiveMap     = cache.New(5*time.Minute, 30*time.Second)
 )
@@ -42,9 +43,10 @@ type Message interface{}
 
 // TextMessage represents a chat message
 type TextMessage struct {
-	ChanID string
-	Player Player
-	Text   string
+	ChanID     string
+	Player     Player
+	Text       string
+	ReceivedAt time.Time
 }
 
 // StateMessage represents state change in the game
@@ -214,33 +216,12 @@ func (g *Game) startRound(currentRound int) error {
 				continue
 			}
 
-			playerActiveMap.Set(string(msg.Player.ID), struct{}{}, cache.DefaultExpiration)
-			log.Debug("startRound got message", zap.String("chanID", g.ChanID), zap.Object("msg", msg))
-			answer := msg.Text
-			correct, alreadyAnswered, idx := r.answer(msg.Player, answer)
-			if !correct {
-				if TickAfterWrongAnswer {
-					g.Out <- WrongAnswerMessage{ChanID: g.ChanID, TimeLeft: r.timeLeft()}
-				}
+			handled := g.handleMessage(msg, r)
+			if handled {
 				gameMsgProcessTimer.UpdateSince(started)
+				gameServiceTimer.UpdateSince(msg.ReceivedAt)
 				continue
 			}
-			if alreadyAnswered {
-				log.Debug("already answered", zap.String("chanID", g.ChanID), zap.String("by", string(r.correct[idx])))
-				gameMsgProcessTimer.UpdateSince(started)
-				continue
-			}
-
-			// show correct answer
-			DefaultDB.incStats("answer_correct")
-			DefaultDB.incChannelStats(g.ChanID, "answer_correct")
-			DefaultDB.incPlayerStats(msg.Player.ID, "answer_correct")
-			log.Info("answer correct",
-				zap.String("playerID", string(msg.Player.ID)),
-				zap.String("playerName", msg.Player.Name),
-				zap.String("answer", answer),
-				zap.Int("questionID", r.q.ID),
-				zap.String("chanID", g.ChanID))
 
 			if r.finised() {
 				timeLeftTick.Stop()
@@ -257,6 +238,7 @@ func (g *Game) startRound(currentRound int) error {
 				return nil
 			}
 			gameMsgProcessTimer.UpdateSince(started)
+			gameServiceTimer.UpdateSince(msg.ReceivedAt)
 
 		case <-timeLeftTick.C: // inform time left
 			select {
@@ -282,6 +264,35 @@ func (g *Game) startRound(currentRound int) error {
 			return nil
 		}
 	}
+}
+
+func (g *Game) handleMessage(msg TextMessage, r *round) (handled bool) {
+	playerActiveMap.Set(string(msg.Player.ID), struct{}{}, cache.DefaultExpiration)
+	log.Debug("startRound got message", zap.String("chanID", g.ChanID), zap.Object("msg", msg))
+	answer := msg.Text
+	correct, alreadyAnswered, idx := r.answer(msg.Player, answer)
+	if !correct {
+		if TickAfterWrongAnswer {
+			g.Out <- WrongAnswerMessage{ChanID: g.ChanID, TimeLeft: r.timeLeft()}
+		}
+		return true
+	}
+	if alreadyAnswered {
+		log.Debug("already answered", zap.String("chanID", g.ChanID), zap.String("by", string(r.correct[idx])))
+		return true
+	}
+
+	DefaultDB.incStats("answer_correct")
+	DefaultDB.incChannelStats(g.ChanID, "answer_correct")
+	DefaultDB.incPlayerStats(msg.Player.ID, "answer_correct")
+	log.Info("answer correct",
+		zap.String("playerID", string(msg.Player.ID)),
+		zap.String("playerName", msg.Player.Name),
+		zap.String("answer", answer),
+		zap.Int("questionID", r.q.ID),
+		zap.String("chanID", g.ChanID))
+
+	return false
 }
 
 func (g *Game) updateRanking(r Rank) {

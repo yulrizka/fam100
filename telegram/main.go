@@ -221,8 +221,9 @@ func (b *fam100Bot) handleInbox() {
 
 				// pass message to the fam100 game package
 				gameMsg := fam100.TextMessage{
-					Player: fam100.Player{ID: fam100.PlayerID(msg.From.ID), Name: msg.From.FullName()},
-					Text:   msg.Text,
+					Player:     fam100.Player{ID: fam100.PlayerID(msg.From.ID), Name: msg.From.FullName()},
+					Text:       msg.Text,
+					ReceivedAt: msg.ReceivedAt,
 				}
 				ch.game.In <- gameMsg
 				log.Debug("sent to game", zap.String("chanID", chanID), zap.Object("msg", msg))
