@@ -3,6 +3,17 @@ layout: default
 ---
 # Changelog
 
+## v0.5.4 (2016-07-18)
+
+* optimize correct answer message (batch every 10 seconds)
+* add metrics to monitor serviceTime
+
+## v0.5.3 (2016-07-17)
+
+* Fix message format when confirming `/join`
+* add `/help` command
+* update questions
+
 ## v0.5.2 (2016-07-08)
 
 * Fix channel ranking bug
