@@ -61,8 +61,11 @@ func main() {
 	flag.IntVar(&minQuorum, "quorum", 3, "minimal channel quorum")
 	flag.StringVar(&graphiteURL, "graphite", "", "graphite url, empty to disable")
 	flag.IntVar(&roundDuration, "roundDuration", 90, "round duration in second")
+	flag.IntVar(&fam100.DefaultQuestionLimit, "questionLimit", fam100.DefaultQuestionLimit, "defaultQuestionLimit")
 	logLevel := zap.LevelFlag("v", zap.InfoLevel, "log level: all, debug, info, warn, error, panic, fatal, none")
 	flag.Parse()
+
+	fmt.Printf("fam100.DefaultQuestionLimit = %+v\n", fam100.DefaultQuestionLimit)
 
 	// setup logger
 	log.SetLevel(*logLevel)
@@ -271,14 +274,13 @@ func (b *fam100Bot) handleOutbox() {
 
 			case fam100.StateMessage:
 				switch msg.State {
-				case fam100.Started:
-					gameStartedCount.Inc(1)
-					text := fmt.Sprintf(fam100.T("Game dimulai, siapapun boleh menjawab tanpa `/join`"))
-					b.out <- bot.Message{Chat: bot.Chat{ID: msg.ChanID}, Text: text, Format: bot.Markdown}
-
 				case fam100.RoundStarted:
+					var text string
+					if msg.Round == 1 {
+						text = fmt.Sprintf(fam100.T("Game dimulai, <b>siapapun boleh menjawab tanpa</b> /join\n"))
+					}
 					roundStartedCount.Inc(1)
-					text := fmt.Sprintf(fam100.T("Ronde %d dari %d"), msg.Round, fam100.RoundPerGame)
+					text += fmt.Sprintf(fam100.T("Ronde %d dari %d"), msg.Round, fam100.RoundPerGame)
 					text += "\n\n" + formatRoundText(msg.RoundText)
 					b.out <- bot.Message{Chat: bot.Chat{ID: msg.ChanID}, Text: text, Format: bot.HTML}
 

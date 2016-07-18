@@ -198,6 +198,7 @@ func (g *Game) startRound(currentRound int) error {
 	r.state = RoundStarted
 	timeUp := time.After(RoundDuration)
 	timeLeftTick := time.NewTicker(tickDuration)
+	displayAnswerTick := time.NewTicker(tickDuration)
 
 	// print question
 	g.Out <- StateMessage{ChanID: g.ChanID, State: RoundStarted, Round: currentRound, RoundText: r.questionText(g.ChanID, false)}
@@ -234,9 +235,6 @@ func (g *Game) startRound(currentRound int) error {
 			DefaultDB.incStats("answer_correct")
 			DefaultDB.incChannelStats(g.ChanID, "answer_correct")
 			DefaultDB.incPlayerStats(msg.Player.ID, "answer_correct")
-			qnaText := r.questionText(g.ChanID, false)
-			qnaText.Answers[idx].Highlight = true
-			g.Out <- qnaText
 			log.Info("answer correct",
 				zap.String("playerID", string(msg.Player.ID)),
 				zap.String("playerName", msg.Player.Name),
@@ -246,6 +244,8 @@ func (g *Game) startRound(currentRound int) error {
 
 			if r.finised() {
 				timeLeftTick.Stop()
+				displayAnswerTick.Stop()
+				g.showAnswer(r)
 				r.state = RoundFinished
 				g.updateRanking(r.ranking())
 				g.Out <- StateMessage{ChanID: g.ChanID, State: RoundFinished, Round: currentRound}
@@ -264,8 +264,12 @@ func (g *Game) startRound(currentRound int) error {
 			default:
 			}
 
+		case <-displayAnswerTick.C: // show correct answer (at most once every 10s)
+			g.showAnswer(r)
+
 		case <-timeUp: // time is up
 			timeLeftTick.Stop()
+			displayAnswerTick.Stop()
 			g.State = RoundFinished
 			g.updateRanking(r.ranking())
 			g.Out <- StateMessage{ChanID: g.ChanID, State: RoundTimeout, Round: currentRound}
@@ -289,13 +293,39 @@ func (g *Game) CurrentQuestion() Question {
 	return g.currentRound.q
 }
 
+func (g *Game) showAnswer(r *round) {
+	var show bool
+	// if there is no highlighted answer don't display
+	for _, v := range r.highlight {
+		if v {
+			show = true
+			break
+		}
+	}
+	if !show {
+		return
+	}
+
+	qnaText := r.questionText(g.ChanID, false)
+	select {
+	case g.Out <- qnaText:
+	default:
+	}
+
+	for i := range r.highlight {
+		r.highlight[i] = false
+	}
+}
+
 // round represents with one question
 type round struct {
-	q       Question
-	state   State
-	correct []PlayerID // correct answer answered by a player, "" means not answered
-	players map[PlayerID]Player
-	endAt   time.Time
+	q         Question
+	state     State
+	correct   []PlayerID // correct answer answered by a player, "" means not answered
+	players   map[PlayerID]Player
+	highlight map[int]bool
+
+	endAt time.Time
 }
 
 func newRound(seed int64, totalRoundPlayed int, players map[PlayerID]Player, questionLimit int) (*round, error) {
@@ -305,11 +335,12 @@ func newRound(seed int64, totalRoundPlayed int, players map[PlayerID]Player, que
 	}
 
 	return &round{
-		q:       q,
-		correct: make([]PlayerID, len(q.Answers)),
-		state:   Created,
-		players: players,
-		endAt:   time.Now().Add(RoundDuration).Round(time.Second),
+		q:         q,
+		correct:   make([]PlayerID, len(q.Answers)),
+		state:     Created,
+		players:   players,
+		highlight: make(map[int]bool),
+		endAt:     time.Now().Add(RoundDuration).Round(time.Second),
 	}, nil
 }
 
@@ -329,6 +360,9 @@ func (r *round) questionText(gameID string, showUnAnswered bool) QNAMessage {
 		if pID := r.correct[i]; pID != "" {
 			ra.Answered = true
 			ra.PlayerName = r.players[pID].Name
+		}
+		if r.highlight[i] {
+			ra.Highlight = true
 		}
 		ras[i] = ra
 	}
@@ -402,6 +436,7 @@ func (r *round) answer(p Player, text string) (correct, answered bool, index int
 			return correct, true, i
 		}
 		r.correct[i] = p.ID
+		r.highlight[i] = true
 
 		return correct, false, i
 	}
