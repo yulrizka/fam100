@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math/rand"
 	"net/http"
+	_ "net/http/pprof"
 	"os"
 	"os/signal"
 	"sort"
@@ -12,11 +13,10 @@ import (
 	"syscall"
 	"time"
 
-	"golang.org/x/net/context"
-
 	"github.com/uber-go/zap"
 	"github.com/yulrizka/bot"
 	"github.com/yulrizka/fam100"
+	"golang.org/x/net/context"
 )
 
 var (
@@ -66,6 +66,10 @@ func main() {
 	flag.Parse()
 
 	fmt.Printf("fam100.DefaultQuestionLimit = %+v\n", fam100.DefaultQuestionLimit)
+
+	go func() {
+		log.Info("http listener", zap.Error(http.ListenAndServe("localhost:5050", nil)))
+	}()
 
 	// setup logger
 	log.SetLevel(*logLevel)
