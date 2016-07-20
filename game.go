@@ -21,6 +21,7 @@ var (
 
 	gameMsgProcessTimer = metrics.NewRegisteredTimer("game.processedMessage", metrics.DefaultRegistry)
 	gameServiceTimer    = metrics.NewRegisteredTimer("game.serviceTimeNS", metrics.DefaultRegistry)
+	gameLatencyTimer    = metrics.NewRegisteredTimer("game.latencyNS", metrics.DefaultRegistry)
 	playerActive        = metrics.NewRegisteredGauge("player.active", metrics.DefaultRegistry)
 	playerActiveMap     = cache.New(5*time.Minute, 30*time.Second)
 )
@@ -215,6 +216,7 @@ func (g *Game) startRound(currentRound int) error {
 				log.Error("Unexpected message type input from client")
 				continue
 			}
+			gameLatencyTimer.UpdateSince(msg.ReceivedAt)
 
 			handled := g.handleMessage(msg, r)
 			if handled {
@@ -234,6 +236,7 @@ func (g *Game) startRound(currentRound int) error {
 				DefaultDB.incStats("round_finished")
 				DefaultDB.incChannelStats(g.ChanID, "round_finished")
 				gameMsgProcessTimer.UpdateSince(started)
+				gameServiceTimer.UpdateSince(msg.ReceivedAt)
 
 				return nil
 			}
