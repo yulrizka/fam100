@@ -25,7 +25,10 @@ func InitQuestion(dbPath string) (numQuestion int, err error) {
 		return 0, err
 	}
 
-	return DefaultQuestionDB.questionSize, nil
+	questionSize := DefaultQuestionDB.questionSize
+	DefaultQuestionLimit = int(float64(questionSize) * 0.8)
+
+	return questionSize, nil
 }
 
 type QuestionDB struct {

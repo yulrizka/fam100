@@ -28,6 +28,7 @@ var (
 	telegramInBufferSize = 10000
 	gameInBufferSize     = 10000
 	gameOutBufferSize    = 10000
+	defaultQuestionLimit = 0
 	botName              = "fam100bot"
 	startedAt            time.Time
 	timeoutChan          = make(chan string, 10000)
@@ -61,11 +62,9 @@ func main() {
 	flag.IntVar(&minQuorum, "quorum", 3, "minimal channel quorum")
 	flag.StringVar(&graphiteURL, "graphite", "", "graphite url, empty to disable")
 	flag.IntVar(&roundDuration, "roundDuration", 90, "round duration in second")
-	flag.IntVar(&fam100.DefaultQuestionLimit, "questionLimit", fam100.DefaultQuestionLimit, "defaultQuestionLimit")
+	flag.IntVar(&defaultQuestionLimit, "questionLimit", -1, "defaultQuestionLimit")
 	logLevel := zap.LevelFlag("v", zap.InfoLevel, "log level: all, debug, info, warn, error, panic, fatal, none")
 	flag.Parse()
-
-	fmt.Printf("fam100.DefaultQuestionLimit = %+v\n", fam100.DefaultQuestionLimit)
 
 	go func() {
 		log.Info("http listener", zap.Error(http.ListenAndServe("localhost:5050", nil)))
@@ -94,6 +93,11 @@ func main() {
 	} else {
 		log.Info("Question loaded", zap.Int("nQuestion", n))
 	}
+	if defaultQuestionLimit >= 0 {
+		fam100.DefaultQuestionLimit = defaultQuestionLimit
+	}
+	log.Info("Question limit ", zap.Int("fam100.DefaultQuestionLimit", fam100.DefaultQuestionLimit))
+
 	defer func() {
 		if r := recover(); r != nil {
 			fam100.DefaultQuestionDB.Close()
