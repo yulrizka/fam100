@@ -8,6 +8,7 @@ import (
 	_ "net/http/pprof"
 	"os"
 	"os/signal"
+	"runtime"
 	"sort"
 	"strings"
 	"syscall"
@@ -36,6 +37,7 @@ var (
 	adminID              = ""
 	httpTimeout          = 15 * time.Second
 	roundDuration        = 90
+	blockProfileRate     = 0
 
 	// compiled time information
 	VERSION   = ""
@@ -62,11 +64,16 @@ func main() {
 	flag.IntVar(&minQuorum, "quorum", 3, "minimal channel quorum")
 	flag.StringVar(&graphiteURL, "graphite", "", "graphite url, empty to disable")
 	flag.IntVar(&roundDuration, "roundDuration", 90, "round duration in second")
-	flag.IntVar(&defaultQuestionLimit, "questionLimit", -1, "defaultQuestionLimit")
+	flag.IntVar(&defaultQuestionLimit, "questionLimit", -1, "set default question limit")
+	flag.IntVar(&blockProfileRate, "blockProfile", 0, "enable go routine blockProfile for profiling rate set to 1000000000 for sampling every sec")
 	logLevel := zap.LevelFlag("v", zap.InfoLevel, "log level: all, debug, info, warn, error, panic, fatal, none")
 	flag.Parse()
 
 	go func() {
+		if blockProfileRate > 0 {
+			runtime.SetBlockProfileRate(blockProfileRate)
+			log.Info("runtime.BlockProfile is enabled", zap.Int("rate", blockProfileRate))
+		}
 		log.Info("http listener", zap.Error(http.ListenAndServe("localhost:5050", nil)))
 	}()
 
