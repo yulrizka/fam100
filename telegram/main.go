@@ -293,6 +293,7 @@ func (b *fam100Bot) handleOutbox() {
 				case fam100.RoundStarted:
 					var text string
 					if msg.Round == 1 {
+						gameStartedCount.Inc(1)
 						text = fmt.Sprintf(fam100.T("Game dimulai, <b>siapapun boleh menjawab tanpa</b> /join\n"))
 					}
 					roundStartedCount.Inc(1)
