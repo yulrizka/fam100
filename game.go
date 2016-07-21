@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/patrickmn/go-cache"
-	"github.com/rcrowley/go-metrics"
 	"github.com/uber-go/zap"
 )
 
@@ -19,11 +18,7 @@ var (
 	DefaultQuestionLimit = 600
 	log                  zap.Logger
 
-	gameMsgProcessTimer = metrics.NewRegisteredTimer("game.processedMessage", metrics.DefaultRegistry)
-	gameServiceTimer    = metrics.NewRegisteredTimer("game.serviceTimeNS", metrics.DefaultRegistry)
-	gameLatencyTimer    = metrics.NewRegisteredTimer("game.latencyNS", metrics.DefaultRegistry)
-	playerActive        = metrics.NewRegisteredGauge("player.active", metrics.DefaultRegistry)
-	playerActiveMap     = cache.New(5*time.Minute, 30*time.Second)
+	playerActiveMap = cache.New(5*time.Minute, 30*time.Second)
 )
 
 func init() {
@@ -235,8 +230,7 @@ func (g *Game) startRound(currentRound int) error {
 				log.Info("Round finished", zap.String("chanID", g.ChanID), zap.Bool("timeout", false))
 				DefaultDB.incStats("round_finished")
 				DefaultDB.incChannelStats(g.ChanID, "round_finished")
-				gameMsgProcessTimer.UpdateSince(started)
-				gameServiceTimer.UpdateSince(msg.ReceivedAt)
+				gameFinishedTimer.UpdateSince(started)
 
 				return nil
 			}

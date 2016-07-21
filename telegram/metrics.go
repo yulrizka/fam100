@@ -35,6 +35,10 @@ var (
 	playerTotal     = metrics.NewRegisteredGauge("player.total", metrics.DefaultRegistry)
 	gameActiveTotal = metrics.NewRegisteredGauge("game.active.total", metrics.DefaultRegistry)
 
+	cmdJoinTimer  = metrics.NewRegisteredTimer("command.join.ns", metrics.DefaultRegistry)
+	cmdScoreTimer = metrics.NewRegisteredTimer("command.score.ns", metrics.DefaultRegistry)
+	cmdHelpTimer  = metrics.NewRegisteredTimer("command.help.ns", metrics.DefaultRegistry)
+
 	// golang metrics
 	alloc        = metrics.NewRegisteredGauge("memory.alloc", metrics.DefaultRegistry)
 	totalAlloc   = metrics.NewRegisteredGauge("memory.totalAlloc", metrics.DefaultRegistry)

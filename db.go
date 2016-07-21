@@ -112,18 +112,24 @@ func (r *RedisDB) Init() (err error) {
 }
 
 func (r *RedisDB) ChannelCount() (total int, err error) {
+	defer dbChannelCountTimer.UpdateSince(time.Now())
+
 	conn := r.pool.Get()
 	defer conn.Close()
 	return redis.Int(conn.Do("HLEN", cNameKey))
 }
 
 func (r *RedisDB) Channels() (channels map[string]string, err error) {
+	defer dbChannelsTimer.UpdateSince(time.Now())
+
 	conn := r.pool.Get()
 	defer conn.Close()
 	return redis.StringMap(conn.Do("HGETALL", cNameKey))
 }
 
 func (r *RedisDB) ChannelConfig(chanID, key, defaultValue string) (config string, err error) {
+	defer dbChannelConfigTimer.UpdateSince(time.Now())
+
 	conn := r.pool.Get()
 	defer conn.Close()
 
@@ -138,6 +144,8 @@ func (r *RedisDB) ChannelConfig(chanID, key, defaultValue string) (config string
 }
 
 func (r *RedisDB) GlobalConfig(key, defaultValue string) (config string, err error) {
+	defer dbGlobalConfigTimer.UpdateSince(time.Now())
+
 	conn := r.pool.Get()
 	defer conn.Close()
 
@@ -152,6 +160,8 @@ func (r *RedisDB) GlobalConfig(key, defaultValue string) (config string, err err
 }
 
 func (r *RedisDB) PlayerCount() (total int, err error) {
+	defer dbPlayerCountTimer.UpdateSince(time.Now())
+
 	conn := r.pool.Get()
 	defer conn.Close()
 
@@ -159,6 +169,8 @@ func (r *RedisDB) PlayerCount() (total int, err error) {
 }
 
 func (r *RedisDB) nextGame(chanID string) (seed int64, nextRound int, err error) {
+	defer dbNextGameTimer.UpdateSince(time.Now())
+
 	seed = int64(crc32.ChecksumIEEE([]byte(chanID)))
 	v, err := r.channelStats(chanID, "played")
 	if err != nil {
@@ -176,6 +188,8 @@ func (r *RedisDB) nextGame(chanID string) (seed int64, nextRound int, err error)
 }
 
 func (r RedisDB) incStats(key string) error {
+	defer dbIncStatsTimer.UpdateSince(time.Now())
+
 	conn := r.pool.Get()
 	defer conn.Close()
 
@@ -186,6 +200,8 @@ func (r RedisDB) incStats(key string) error {
 }
 
 func (r RedisDB) incChannelStats(chanID, key string) error {
+	defer dbIncChannelStatsTimer.UpdateSince(time.Now())
+
 	conn := r.pool.Get()
 	defer conn.Close()
 
@@ -196,6 +212,8 @@ func (r RedisDB) incChannelStats(chanID, key string) error {
 }
 
 func (r RedisDB) incPlayerStats(playerID PlayerID, key string) error {
+	defer dbIncPlayerStatsTimer.UpdateSince(time.Now())
+
 	conn := r.pool.Get()
 	defer conn.Close()
 
@@ -206,6 +224,8 @@ func (r RedisDB) incPlayerStats(playerID PlayerID, key string) error {
 }
 
 func (r RedisDB) stats(key string) (interface{}, error) {
+	defer dbStatsTimer.UpdateSince(time.Now())
+
 	conn := r.pool.Get()
 	defer conn.Close()
 
@@ -214,6 +234,8 @@ func (r RedisDB) stats(key string) (interface{}, error) {
 }
 
 func (r RedisDB) channelStats(chanID, key string) (interface{}, error) {
+	defer dbChannelStatsTimer.UpdateSince(time.Now())
+
 	conn := r.pool.Get()
 	defer conn.Close()
 
@@ -222,6 +244,8 @@ func (r RedisDB) channelStats(chanID, key string) (interface{}, error) {
 }
 
 func (r RedisDB) playerStats(playerID, key string) (interface{}, error) {
+	defer dbPlayerStatsTimer.UpdateSince(time.Now())
+
 	conn := r.pool.Get()
 	defer conn.Close()
 
@@ -234,6 +258,8 @@ func (r *RedisDB) incRoundPlayed(chanID string) error {
 }
 
 func (r RedisDB) saveScore(chanID, chanName string, scores Rank) error {
+	defer dbSaveScoreTimer.UpdateSince(time.Now())
+
 	conn := r.pool.Get()
 	defer conn.Close()
 	for _, score := range scores {
@@ -254,6 +280,8 @@ func (r RedisDB) playerRanking(limit int) (Rank, error) {
 }
 
 func (r RedisDB) getRanking(key string, limit int) (ranking Rank, err error) {
+	defer dbGetRankingTimer.UpdateSince(time.Now())
+
 	conn := r.pool.Get()
 	defer conn.Close()
 	if limit <= 0 {
@@ -303,6 +331,8 @@ func (r RedisDB) PlayerChannelScore(chanID string, playerID PlayerID) (PlayerSco
 }
 
 func (r RedisDB) getScore(key string, playerID PlayerID) (ps PlayerScore, err error) {
+	defer dbGetScoreTimer.UpdateSince(time.Now())
+
 	conn := r.pool.Get()
 	defer conn.Close()
 

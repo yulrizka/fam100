@@ -2,11 +2,13 @@ package main
 
 import (
 	"fmt"
+	l "log"
 	"math/rand"
 	"os"
 	"testing"
 	"time"
 
+	"github.com/rcrowley/go-metrics"
 	"github.com/uber-go/zap"
 	"github.com/yulrizka/bot"
 	"github.com/yulrizka/fam100"
@@ -159,4 +161,72 @@ func readOutMessage(t *testing.T, b *fam100Bot) fam100.Message {
 			return nil
 		}
 	}
+}
+
+func TestGame(t *testing.T) {
+	t.Skip()
+
+	out := make(chan bot.Message)
+	subject := fam100Bot{}
+	in, err := subject.Init(out)
+	if err != nil {
+		t.Error(err)
+	}
+	subject.start()
+
+	// read output
+	go func() {
+		for {
+			<-subject.out
+		}
+		//time.Sleep(70 * time.Millisecond)
+	}()
+
+	players := make([]bot.User, 5)
+	for i := 0; i < len(players); i++ {
+		players[i] = bot.User{ID: fmt.Sprintf("%d", i), FirstName: fmt.Sprintf("Player %d", i)}
+	}
+
+	play := func(chatID string) {
+		// send join message from 3 different user
+		for i := 0; i < 3; i++ {
+			in <- &bot.Message{
+				From:       players[i],
+				Chat:       bot.Chat{ID: chatID, Type: bot.Group},
+				Text:       "/join@" + botName,
+				ReceivedAt: time.Now(),
+			}
+		}
+
+		// randomly answer message at a rate
+		for {
+			select {
+			default:
+				in <- &bot.Message{
+					From:       players[rand.Intn(len(players))],
+					Chat:       bot.Chat{ID: chatID, Type: bot.Group},
+					Text:       "some answer",
+					ReceivedAt: time.Now(),
+				}
+				in <- &bot.Message{
+					From: players[rand.Intn(len(players))],
+					Chat: bot.Chat{ID: chatID, Type: bot.Group},
+					//Text:       "foo",
+					Text:       "/join@" + botName,
+					ReceivedAt: time.Now(),
+				}
+			}
+		}
+	}
+
+	log.SetLevel(zap.NoneLevel)
+	fam100.SetLogger(log)
+	for i := 0; i < 500; i++ {
+		go play(fmt.Sprintf("%d", i))
+	}
+
+	time.Sleep(5 * time.Second)
+
+	go metrics.LogScaled(metrics.DefaultRegistry, 1*time.Second, time.Millisecond, l.New(os.Stderr, "", 0))
+	time.Sleep(1*time.Second + 100*time.Millisecond)
 }

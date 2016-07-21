@@ -20,6 +20,8 @@ var lastCmdRequest = make(map[string]time.Time)
 
 // handleJoin handles "/join". Create game and start it if quorum
 func (b *fam100Bot) cmdJoin(msg *bot.Message) bool {
+	defer cmdJoinTimer.UpdateSince(time.Now())
+
 	if b.handleDisabled(msg) {
 		return true
 	}
@@ -80,10 +82,12 @@ func (b *fam100Bot) cmdJoin(msg *bot.Message) bool {
 	b.out <- bot.Message{Chat: bot.Chat{ID: chanID}, Text: text, Format: bot.HTML}
 	log.Info("User joined", zap.String("playerID", msg.From.ID), zap.String("chanID", chanID))
 
-	return false
+	return true
 }
 
 func (b *fam100Bot) cmdHelp(msg *bot.Message) bool {
+	defer cmdHelpTimer.UpdateSince(time.Now())
+
 	if b.handleDisabled(msg) {
 		return true
 	}
@@ -99,6 +103,8 @@ func (b *fam100Bot) cmdHelp(msg *bot.Message) bool {
 
 // handleJoin handles "/score" show top score for current channel
 func (b *fam100Bot) cmdScore(msg *bot.Message) bool {
+	defer cmdScoreTimer.UpdateSince(time.Now())
+
 	if b.handleDisabled(msg) {
 		return true
 	}
