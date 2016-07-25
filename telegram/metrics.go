@@ -34,10 +34,16 @@ var (
 	channelTotal    = metrics.NewRegisteredGauge("channel.total", metrics.DefaultRegistry)
 	playerTotal     = metrics.NewRegisteredGauge("player.total", metrics.DefaultRegistry)
 	gameActiveTotal = metrics.NewRegisteredGauge("game.active.total", metrics.DefaultRegistry)
+	inboxQueueSize  = metrics.NewRegisteredGauge("inboxQueue.size", metrics.DefaultRegistry)
+	outboxQueueSize = metrics.NewRegisteredGauge("outboxQueue.size", metrics.DefaultRegistry)
 
 	cmdJoinTimer  = metrics.NewRegisteredTimer("command.join.ns", metrics.DefaultRegistry)
 	cmdScoreTimer = metrics.NewRegisteredTimer("command.score.ns", metrics.DefaultRegistry)
 	cmdHelpTimer  = metrics.NewRegisteredTimer("command.help.ns", metrics.DefaultRegistry)
+
+	mainHandleMigrationTimer = metrics.NewRegisteredTimer("main.handleMigration.ns", metrics.DefaultRegistry)
+	mainHandleMessageTimer   = metrics.NewRegisteredTimer("main.handleMessage.ns", metrics.DefaultRegistry)
+	mainSendToGameTimer      = metrics.NewRegisteredTimer("main.sendToGame.ns", metrics.DefaultRegistry)
 
 	// golang metrics
 	alloc        = metrics.NewRegisteredGauge("memory.alloc", metrics.DefaultRegistry)
@@ -88,6 +94,8 @@ func initMetrics(b fam100Bot) {
 			}
 
 			gameActiveTotal.Update(int64(len(b.channels)))
+			inboxQueueSize.Update(int64(len(plugin.in)))
+			outboxQueueSize.Update(int64(len(plugin.out)))
 		}
 	}()
 
