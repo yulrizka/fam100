@@ -45,6 +45,27 @@ var (
 	mainHandleMessageTimer   = metrics.NewRegisteredTimer("main.handleMessage.ns", metrics.DefaultRegistry)
 	mainSendToGameTimer      = metrics.NewRegisteredTimer("main.sendToGame.ns", metrics.DefaultRegistry)
 
+	// Todo should be removed
+	// handle say
+	mainHandleSayTimer = metrics.NewRegisteredTimer("main.handleSay.ns", metrics.DefaultRegistry)
+	// handle channles
+	mainHandleChannelsTimer = metrics.NewRegisteredTimer("main.handleChannels.ns", metrics.DefaultRegistry)
+	// handle broadcast
+	mainHandleBrodcastTimer = metrics.NewRegisteredTimer("main.handleBrodcast.ns", metrics.DefaultRegistry)
+	// handle join
+	mainHandleJoinTimer = metrics.NewRegisteredTimer("main.handleJoin.ns", metrics.DefaultRegistry)
+	// handle score
+	mainHandleScoreTimer = metrics.NewRegisteredTimer("main.handleScore.ns", metrics.DefaultRegistry)
+	// handle help
+	mainHandleHelpTimer = metrics.NewRegisteredTimer("main.handleHelp.ns", metrics.DefaultRegistry)
+	// handle privateChat
+	mainHandlePrivateChatTimer = metrics.NewRegisteredTimer("main.handlePrivateChat.ns", metrics.DefaultRegistry)
+
+	// hanle notFound
+	mainHandleNotFoundTimer = metrics.NewRegisteredTimer("main.handleNotFound.ns", metrics.DefaultRegistry)
+	// handle minQuorum
+	mainHandleMinQuorumTimer = metrics.NewRegisteredTimer("main.handleMinQuorum.ns", metrics.DefaultRegistry)
+
 	// golang metrics
 	alloc        = metrics.NewRegisteredGauge("memory.alloc", metrics.DefaultRegistry)
 	totalAlloc   = metrics.NewRegisteredGauge("memory.totalAlloc", metrics.DefaultRegistry)
@@ -94,6 +115,11 @@ func initMetrics(b fam100Bot) {
 			}
 
 			gameActiveTotal.Update(int64(len(b.channels)))
+		}
+	}()
+
+	go func() {
+		for range time.Tick(1 * time.Second) {
 			inboxQueueSize.Update(int64(len(plugin.in)))
 			outboxQueueSize.Update(int64(len(plugin.out)))
 		}
