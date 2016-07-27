@@ -35,7 +35,7 @@ var (
 	timeoutChan          = make(chan string, 10000)
 	finishedChan         = make(chan string, 10000)
 	adminID              = ""
-	httpTimeout          = 15 * time.Second
+	httpTimeout          = 10 * time.Second
 	roundDuration        = 90
 	blockProfileRate     = 0
 	plugin               = fam100Bot{}
@@ -319,7 +319,7 @@ func (b *fam100Bot) handleOutbox() {
 					var text string
 					if msg.Round == 1 {
 						gameStartedCount.Inc(1)
-						text = fmt.Sprintf(fam100.T("Game dimulai, <b>siapapun boleh menjawab tanpa</b> /join\n"))
+						text = fmt.Sprintf(fam100.T("Game (id: %d) dimulai, <b>siapapun boleh menjawab tanpa</b> /join\n"), msg.GameID)
 					}
 					roundStartedCount.Inc(1)
 					text += fmt.Sprintf(fam100.T("Ronde %d dari %d"), msg.Round, fam100.RoundPerGame)
@@ -414,7 +414,7 @@ func (c *channel) startQuorumTimer(wait time.Duration, out chan bot.Message) {
 	ctx, c.cancelTimer = context.WithCancel(context.Background())
 	go func() {
 		endAt := time.Now().Add(quorumWait)
-		notify := []int64{60, 30, 15}
+		notify := []int64{60, 30}
 
 		for {
 			if len(notify) == 0 {

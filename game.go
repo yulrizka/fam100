@@ -1,6 +1,7 @@
 package fam100
 
 import (
+	"math/rand"
 	"sort"
 	"strconv"
 	"time"
@@ -47,6 +48,7 @@ type TextMessage struct {
 
 // StateMessage represents state change in the game
 type StateMessage struct {
+	GameID    int64
 	ChanID    string
 	Round     int
 	State     State
@@ -111,6 +113,7 @@ const (
 // Game can consists of multiple round
 // each round user will be asked question and gain points
 type Game struct {
+	ID               int64
 	ChanID           string
 	ChanName         string
 	State            State
@@ -132,6 +135,7 @@ func NewGame(chanID, chanName string, in, out chan Message) (r *Game, err error)
 	}
 
 	return &Game{
+		ID:               int64(rand.Int31()),
 		ChanID:           chanID,
 		ChanName:         chanName,
 		State:            Created,
@@ -148,11 +152,12 @@ func (g *Game) Start() {
 	g.State = Started
 	log.Info("Game started",
 		zap.String("chanID", g.ChanID),
+		zap.Int64("gameID", g.ID),
 		zap.Int64("seed", g.seed),
 		zap.Int("totalRoundPlayed", g.TotalRoundPlayed))
 
 	go func() {
-		g.Out <- StateMessage{ChanID: g.ChanID, State: Started}
+		g.Out <- StateMessage{ChanID: g.ChanID, State: Started, GameID: g.ID}
 		DefaultDB.incStats("game_started")
 		DefaultDB.incChannelStats(g.ChanID, "game_started")
 		for i := 1; i <= RoundPerGame; i++ {
@@ -169,8 +174,8 @@ func (g *Game) Start() {
 		DefaultDB.incStats("game_finished")
 		DefaultDB.incChannelStats(g.ChanID, "game_finished")
 		g.State = Finished
-		g.Out <- StateMessage{ChanID: g.ChanID, State: Finished}
-		log.Info("Game finished", zap.String("chanID", g.ChanID))
+		g.Out <- StateMessage{ChanID: g.ChanID, State: Finished, GameID: g.ID}
+		log.Info("Game finished", zap.String("chanID", g.ChanID), zap.Int64("gameID", g.ID))
 	}()
 }
 
@@ -199,8 +204,8 @@ func (g *Game) startRound(currentRound int) error {
 	displayAnswerTick := time.NewTicker(tickDuration)
 
 	// print question
-	g.Out <- StateMessage{ChanID: g.ChanID, State: RoundStarted, Round: currentRound, RoundText: r.questionText(g.ChanID, false)}
-	log.Info("Round Started", zap.String("chanID", g.ChanID), zap.Int("questionLimit", questionLimit))
+	g.Out <- StateMessage{ChanID: g.ChanID, State: RoundStarted, Round: currentRound, RoundText: r.questionText(g.ChanID, false), GameID: g.ID}
+	log.Info("Round Started", zap.String("chanID", g.ChanID), zap.Int64("gameID", g.ID), zap.Int64("roundID", r.id), zap.Int("questionID", r.q.ID), zap.Int("questionLimit", questionLimit))
 
 	for {
 		select {
@@ -226,8 +231,8 @@ func (g *Game) startRound(currentRound int) error {
 				g.showAnswer(r)
 				r.state = RoundFinished
 				g.updateRanking(r.ranking())
-				g.Out <- StateMessage{ChanID: g.ChanID, State: RoundFinished, Round: currentRound}
-				log.Info("Round finished", zap.String("chanID", g.ChanID), zap.Bool("timeout", false))
+				g.Out <- StateMessage{ChanID: g.ChanID, State: RoundFinished, Round: currentRound, GameID: g.ID}
+				log.Info("Round finished", zap.String("chanID", g.ChanID), zap.Int64("gameID", g.ID), zap.Int64("roundID", r.id), zap.Bool("timeout", false))
 				DefaultDB.incStats("round_finished")
 				DefaultDB.incChannelStats(g.ChanID, "round_finished")
 				gameFinishedTimer.UpdateSince(started)
@@ -251,8 +256,8 @@ func (g *Game) startRound(currentRound int) error {
 			displayAnswerTick.Stop()
 			g.State = RoundFinished
 			g.updateRanking(r.ranking())
-			g.Out <- StateMessage{ChanID: g.ChanID, State: RoundTimeout, Round: currentRound}
-			log.Info("Round finished", zap.String("chanID", g.ChanID), zap.Bool("timeout", true))
+			g.Out <- StateMessage{ChanID: g.ChanID, State: RoundTimeout, Round: currentRound, GameID: g.ID}
+			log.Info("Round finished", zap.String("chanID", g.ChanID), zap.Int64("gameID", g.ID), zap.Int64("roundID", r.id), zap.Bool("timeout", true))
 			showUnAnswered := true
 			g.Out <- r.questionText(g.ChanID, showUnAnswered)
 			DefaultDB.incStats("round_timeout")
@@ -287,7 +292,9 @@ func (g *Game) handleMessage(msg TextMessage, r *round) (handled bool) {
 		zap.String("playerName", msg.Player.Name),
 		zap.String("answer", answer),
 		zap.Int("questionID", r.q.ID),
-		zap.String("chanID", g.ChanID))
+		zap.String("chanID", g.ChanID),
+		zap.Int64("gameID", g.ID),
+		zap.Int64("roundID", r.id))
 
 	return false
 }
@@ -327,6 +334,7 @@ func (g *Game) showAnswer(r *round) {
 
 // round represents with one question
 type round struct {
+	id        int64
 	q         Question
 	state     State
 	correct   []PlayerID // correct answer answered by a player, "" means not answered
@@ -343,6 +351,7 @@ func newRound(seed int64, totalRoundPlayed int, players map[PlayerID]Player, que
 	}
 
 	return &round{
+		id:        int64(rand.Int31()),
 		q:         q,
 		correct:   make([]PlayerID, len(q.Answers)),
 		state:     Created,
