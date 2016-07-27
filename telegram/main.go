@@ -232,11 +232,13 @@ func (b *fam100Bot) handleInbox() {
 						continue
 					}
 				case "/help", "/help@" + botName:
-					if b.cmdHelp(msg) {
-						mainHandleHelpTimer.UpdateSince(start)
-						mainHandleMessageTimer.UpdateSince(start)
-						continue
-					}
+					continue
+					/*
+						if b.cmdHelp(msg) {
+							mainHandleHelpTimer.UpdateSince(start)
+							mainHandleMessageTimer.UpdateSince(start)
+							continue
+						}*/
 				}
 
 				chanID := msg.Chat.ID
