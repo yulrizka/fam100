@@ -321,7 +321,7 @@ func (b *fam100Bot) handleOutbox() {
 					var text string
 					if msg.Round == 1 {
 						gameStartedCount.Inc(1)
-						text = fmt.Sprintf(fam100.T("Game (id: %d) dimulai, <b>siapapun boleh menjawab tanpa</b> /join\n"), msg.GameID)
+						text = fmt.Sprintf(fam100.T("Game (id: %d) dimulai\n<b>siapapun boleh menjawab tanpa</b> /join\n"), msg.GameID)
 					}
 					roundStartedCount.Inc(1)
 					text += fmt.Sprintf(fam100.T("Ronde %d dari %d"), msg.Round, fam100.RoundPerGame)
