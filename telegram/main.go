@@ -23,7 +23,7 @@ import (
 var (
 	log                  zap.Logger
 	logLevel             int
-	minQuorum            = 3 // minimum players to start game
+	minQuorum            = 2 // minimum players to start game
 	graphiteURL          = ""
 	quorumWait           = 120 * time.Second
 	telegramInBufferSize = 10000
