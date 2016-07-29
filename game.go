@@ -182,7 +182,7 @@ func (g *Game) Start() {
 func (g *Game) startRound(currentRound int) error {
 	g.TotalRoundPlayed++
 	if err := DefaultDB.incRoundPlayed(g.ChanID); err != nil {
-		log.Error("failed to increase totalRoundPlayed", zap.Int("totalRoundPlayed", g.TotalRoundPlayed))
+		log.Error("failed to increase totalRoundPlayed", zap.Int("totalRoundPlayed", g.TotalRoundPlayed), zap.Error(err))
 	}
 
 	questionLimit := DefaultQuestionLimit
