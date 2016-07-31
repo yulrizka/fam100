@@ -34,6 +34,7 @@ func (b *fam100Bot) cmdJoin(msg *bot.Message) bool {
 		playerJoinedCount.Inc(1)
 		// create a new game
 		quorumPlayer := map[string]bool{msg.From.ID: true}
+		players := map[string]string{msg.From.ID: msg.From.FullName()}
 
 		gameIn := make(chan fam100.Message, gameInBufferSize)
 		game, err := fam100.NewGame(chanID, chanName, gameIn, b.gameOut)
@@ -42,22 +43,14 @@ func (b *fam100Bot) cmdJoin(msg *bot.Message) bool {
 			return true
 		}
 
-		ch := &channel{ID: chanID, game: game, quorumPlayer: quorumPlayer}
+		ch := &channel{ID: chanID, game: game, quorumPlayer: quorumPlayer, players: players}
 		b.channels[chanID] = ch
 		if len(ch.quorumPlayer) == minQuorum {
 			ch.game.Start()
 			return true
 		}
 		ch.startQuorumTimer(quorumWait, b.out)
-		text := fmt.Sprintf(
-			fam100.T("<b>%s</b> OK, butuh %d orang lagi, sisa waktu %s"),
-			escape(msg.From.FullName()),
-			minQuorum-len(quorumPlayer),
-			quorumWait,
-		)
-
-		// TODO: batch this message
-		b.out <- bot.Message{Chat: bot.Chat{ID: chanID}, Text: text, Format: bot.HTML, DiscardAfter: time.Now().Add(5 * time.Second)}
+		ch.startQuorumNotifyTimer(5*time.Second, b.out)
 		log.Info("User joined", zap.String("playerID", msg.From.ID), zap.String("chanID", chanID))
 		return true
 	}
@@ -70,18 +63,18 @@ func (b *fam100Bot) cmdJoin(msg *bot.Message) bool {
 	playerJoinedCount.Inc(1)
 	ch.cancelTimer()
 	ch.quorumPlayer[msg.From.ID] = true
+	ch.players[msg.From.ID] = msg.From.FullName()
 	if len(ch.quorumPlayer) == minQuorum {
+		if ch.cancelNotifyTimer != nil {
+			ch.cancelNotifyTimer()
+		}
 		ch.game.Start()
 		return true
 	}
 	ch.startQuorumTimer(quorumWait, b.out)
-	text := fmt.Sprintf(
-		fam100.T("<b>%s</b> OK, butuh %d orang lagi, sisa waktu %s"),
-		escape(msg.From.FullName()),
-		minQuorum-len(ch.quorumPlayer),
-		quorumWait,
-	)
-	b.out <- bot.Message{Chat: bot.Chat{ID: chanID}, Text: text, Format: bot.HTML, DiscardAfter: time.Now().Add(5 * time.Second)}
+	if ch.cancelNotifyTimer == nil {
+		ch.startQuorumNotifyTimer(5*time.Second, b.out)
+	}
 	log.Info("User joined", zap.String("playerID", msg.From.ID), zap.String("chanID", chanID))
 
 	return true

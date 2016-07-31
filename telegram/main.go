@@ -379,7 +379,7 @@ func (b *fam100Bot) handleOutbox() {
 					sort.Sort(rank)
 					text += "\n<b>Total Score</b>" + formatRankText(rank)
 
-					text += fmt.Sprintf("\n<a href=\"http://labs.yulrizka.com/fam100/scores.html?c=%s\">Full Score</a>\n", msg.ChanID)
+					text += fmt.Sprintf("\nFull Score <a href=\"http://labs.yulrizka.com/fam100/scores.html?c=%s\">Lihat disini</a>\n", msg.ChanID)
 					text += fmt.Sprintf(fam100.T("\nGame selesai!"))
 					motd, _ := messageOfTheDay(msg.ChanID)
 					if motd != "" {
@@ -409,11 +409,13 @@ func (b *fam100Bot) handleOutbox() {
 
 // channel represents channels chat rooms
 type channel struct {
-	ID           string
-	game         *fam100.Game
-	quorumPlayer map[string]bool
-	startedAt    time.Time
-	cancelTimer  context.CancelFunc
+	ID                string
+	game              *fam100.Game
+	quorumPlayer      map[string]bool
+	players           map[string]string
+	startedAt         time.Time
+	cancelTimer       context.CancelFunc
+	cancelNotifyTimer context.CancelFunc
 }
 
 func (c *channel) startQuorumTimer(wait time.Duration, out chan bot.Message) {
@@ -439,6 +441,32 @@ func (c *channel) startQuorumTimer(wait time.Duration, out chan bot.Message) {
 				text := fmt.Sprintf(fam100.T("Waktu sisa %s"), timeLeft)
 				out <- bot.Message{Chat: bot.Chat{ID: c.ID}, Text: text, Format: bot.Markdown, DiscardAfter: time.Now().Add(2 * time.Second)}
 			}
+		}
+	}()
+}
+
+//TODO: refactor into simpler function with game context
+func (c *channel) startQuorumNotifyTimer(wait time.Duration, out chan bot.Message) {
+	var ctx context.Context
+	ctx, c.cancelNotifyTimer = context.WithCancel(context.Background())
+	go func() {
+		select {
+		case <-ctx.Done():
+			return
+		case <-time.After(wait):
+			players := make([]string, 0, len(c.players))
+			for _, p := range c.players {
+				players = append(players, p)
+			}
+
+			text := fmt.Sprintf(
+				fam100.T("<b>%s</b> OK, butuh %d orang lagi, sisa waktu %s"),
+				escape(strings.Join(players, ",")),
+				minQuorum-len(c.quorumPlayer),
+				quorumWait,
+			)
+			out <- bot.Message{Chat: bot.Chat{ID: c.ID}, Text: text, Format: bot.HTML, DiscardAfter: time.Now().Add(5 * time.Second)}
+			c.cancelNotifyTimer = nil
 		}
 	}()
 }
