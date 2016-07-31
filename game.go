@@ -158,8 +158,6 @@ func (g *Game) Start() {
 
 	go func() {
 		g.Out <- StateMessage{ChanID: g.ChanID, State: Started, GameID: g.ID}
-		DefaultDB.incStats("game_started")
-		DefaultDB.incChannelStats(g.ChanID, "game_started")
 		for i := 1; i <= RoundPerGame; i++ {
 			err := g.startRound(i)
 			if err != nil {
@@ -171,8 +169,6 @@ func (g *Game) Start() {
 				time.Sleep(DelayBetweenRound)
 			}
 		}
-		DefaultDB.incStats("game_finished")
-		DefaultDB.incChannelStats(g.ChanID, "game_finished")
 		g.State = Finished
 		g.Out <- StateMessage{ChanID: g.ChanID, State: Finished, GameID: g.ID}
 		log.Info("Game finished", zap.String("chanID", g.ChanID), zap.Int64("gameID", g.ID))
@@ -196,8 +192,6 @@ func (g *Game) startRound(currentRound int) error {
 	if err != nil {
 		return err
 	}
-	DefaultDB.incStats("round_started")
-	DefaultDB.incChannelStats(g.ChanID, "round_started")
 
 	g.currentRound = r
 	r.state = RoundStarted
@@ -235,8 +229,6 @@ func (g *Game) startRound(currentRound int) error {
 				g.updateRanking(r.ranking())
 				g.Out <- StateMessage{ChanID: g.ChanID, State: RoundFinished, Round: currentRound, GameID: g.ID}
 				log.Info("Round finished", zap.String("chanID", g.ChanID), zap.Int64("gameID", g.ID), zap.Int64("roundID", r.id), zap.Bool("timeout", false))
-				DefaultDB.incStats("round_finished")
-				DefaultDB.incChannelStats(g.ChanID, "round_finished")
 				gameFinishedTimer.UpdateSince(started)
 
 				return nil
@@ -262,8 +254,6 @@ func (g *Game) startRound(currentRound int) error {
 			log.Info("Round finished", zap.String("chanID", g.ChanID), zap.Int64("gameID", g.ID), zap.Int64("roundID", r.id), zap.Bool("timeout", true))
 			showUnAnswered := true
 			g.Out <- r.questionText(g.ChanID, showUnAnswered)
-			DefaultDB.incStats("round_timeout")
-			DefaultDB.incChannelStats(g.ChanID, "round_timeout")
 
 			return nil
 		}
@@ -286,9 +276,6 @@ func (g *Game) handleMessage(msg TextMessage, r *round) (handled bool) {
 		return true
 	}
 
-	DefaultDB.incStats("answer_correct")
-	DefaultDB.incChannelStats(g.ChanID, "answer_correct")
-	DefaultDB.incPlayerStats(msg.Player.ID, "answer_correct")
 	log.Info("answer correct",
 		zap.String("playerID", string(msg.Player.ID)),
 		zap.String("playerName", msg.Player.Name),
