@@ -421,7 +421,7 @@ func (c *channel) startQuorumTimer(wait time.Duration, out chan bot.Message) {
 	ctx, c.cancelTimer = context.WithCancel(context.Background())
 	go func() {
 		endAt := time.Now().Add(quorumWait)
-		notify := []int64{60, 30}
+		notify := []int64{30}
 
 		for {
 			if len(notify) == 0 {
@@ -437,7 +437,7 @@ func (c *channel) startQuorumTimer(wait time.Duration, out chan bot.Message) {
 				return
 			case <-time.After(tickAt.Sub(time.Now())):
 				text := fmt.Sprintf(fam100.T("Waktu sisa %s"), timeLeft)
-				out <- bot.Message{Chat: bot.Chat{ID: c.ID}, Text: text, Format: bot.Markdown}
+				out <- bot.Message{Chat: bot.Chat{ID: c.ID}, Text: text, Format: bot.Markdown, DiscardAfter: time.Now().Add(2 * time.Second)}
 			}
 		}
 	}()
