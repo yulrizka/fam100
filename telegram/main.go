@@ -275,7 +275,7 @@ func (b *fam100Bot) handleInbox() {
 			// chan failed to get quorum
 			delete(b.channels, chanID)
 			text := fmt.Sprintf(fam100.T("Permainan dibatalkan, jumlah pemain tidak cukup  😞"))
-			b.out <- bot.Message{Chat: bot.Chat{ID: chanID}, Text: text, Format: bot.Markdown, DiscardAfter: time.Now().Add(10 * time.Second), Retry: 10}
+			b.out <- bot.Message{Chat: bot.Chat{ID: chanID}, Text: text, Format: bot.Markdown, DiscardAfter: time.Now().Add(10 * time.Second)}
 			log.Info("Quorum timeout", zap.String("chanID", chanID))
 
 		case chanID := <-finishedChan:
@@ -326,7 +326,7 @@ func (b *fam100Bot) handleOutbox() {
 					roundStartedCount.Inc(1)
 					text += fmt.Sprintf(fam100.T("Ronde %d dari %d"), msg.Round, fam100.RoundPerGame)
 					text += "\n\n" + formatRoundText(msg.RoundText)
-					b.out <- bot.Message{Chat: bot.Chat{ID: msg.ChanID}, Text: text, Format: bot.HTML, Retry: 100}
+					b.out <- bot.Message{Chat: bot.Chat{ID: msg.ChanID}, Text: text, Format: bot.HTML}
 
 				case fam100.RoundFinished:
 					roundFinishedCount.Inc(1)
@@ -346,10 +346,8 @@ func (b *fam100Bot) handleOutbox() {
 				if !msg.ShowUnanswered {
 					answerCorrectCount.Inc(1)
 					outMsg.DiscardAfter = time.Now().Add(10 * time.Second)
-					outMsg.Retry = 5
 				} else {
 					// mesage at the end of timeout
-					outMsg.Retry = 100
 				}
 				b.out <- outMsg
 
@@ -390,7 +388,7 @@ func (b *fam100Bot) handleOutbox() {
 				} else {
 					text = fam100.T("Score sementara:") + text
 				}
-				b.out <- bot.Message{Chat: bot.Chat{ID: msg.ChanID}, Text: text, Format: bot.HTML, Retry: 100}
+				b.out <- bot.Message{Chat: bot.Chat{ID: msg.ChanID}, Text: text, Format: bot.HTML}
 
 			case fam100.TickMessage:
 				if msg.TimeLeft == 30*time.Second || msg.TimeLeft == 10*time.Second {
