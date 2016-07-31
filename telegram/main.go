@@ -461,7 +461,7 @@ func (c *channel) startQuorumNotifyTimer(wait time.Duration, out chan bot.Messag
 
 			text := fmt.Sprintf(
 				fam100.T("<b>%s</b> OK, butuh %d orang lagi, sisa waktu %s"),
-				escape(strings.Join(players, ",")),
+				escape(strings.Join(players, ", ")),
 				minQuorum-len(c.quorumPlayer),
 				quorumWait,
 			)
