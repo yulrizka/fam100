@@ -14,7 +14,7 @@ import (
 )
 
 // cmdRateDelay is time before we serve score command
-var cmdRateDelay = 10 * time.Second
+var cmdRateDelay = 30 * time.Second
 
 var lastCmdRequest = make(map[string]time.Time)
 
@@ -55,7 +55,9 @@ func (b *fam100Bot) cmdJoin(msg *bot.Message) bool {
 			minQuorum-len(quorumPlayer),
 			quorumWait,
 		)
-		b.out <- bot.Message{Chat: bot.Chat{ID: chanID}, Text: text, Format: bot.HTML}
+
+		// TODO: batch this message
+		b.out <- bot.Message{Chat: bot.Chat{ID: chanID}, Text: text, Format: bot.HTML, DiscardAfter: time.Now().Add(5 * time.Second)}
 		log.Info("User joined", zap.String("playerID", msg.From.ID), zap.String("chanID", chanID))
 		return true
 	}
@@ -79,7 +81,7 @@ func (b *fam100Bot) cmdJoin(msg *bot.Message) bool {
 		minQuorum-len(ch.quorumPlayer),
 		quorumWait,
 	)
-	b.out <- bot.Message{Chat: bot.Chat{ID: chanID}, Text: text, Format: bot.HTML}
+	b.out <- bot.Message{Chat: bot.Chat{ID: chanID}, Text: text, Format: bot.HTML, DiscardAfter: time.Now().Add(5 * time.Second)}
 	log.Info("User joined", zap.String("playerID", msg.From.ID), zap.String("chanID", chanID))
 
 	return true
@@ -96,7 +98,7 @@ func (b *fam100Bot) cmdHelp(msg *bot.Message) bool {
 		return true
 	}
 	text := `Cara bermain, menambahkan bot ke group sendiri dapat dilihat di <a href="http://labs.yulrizka.com/fam100/faq.html">F.A.Q</a>`
-	b.out <- bot.Message{Chat: bot.Chat{ID: msg.Chat.ID}, Text: text, Format: bot.HTML}
+	b.out <- bot.Message{Chat: bot.Chat{ID: msg.Chat.ID}, Text: text, Format: bot.HTML, DiscardAfter: time.Now().Add(5 * time.Second)}
 
 	return true
 }
@@ -123,7 +125,7 @@ func (b *fam100Bot) cmdScore(msg *bot.Message) bool {
 
 	text := "<b>Top Score:</b>\n" + formatRankText(rank)
 	text += fmt.Sprintf("\n<a href=\"http://labs.yulrizka.com/fam100/scores.html?c=%s\">Full Score</a>", chanID)
-	b.out <- bot.Message{Chat: bot.Chat{ID: chanID}, Text: text, Format: bot.HTML}
+	b.out <- bot.Message{Chat: bot.Chat{ID: chanID}, Text: text, Format: bot.HTML, DiscardAfter: time.Now().Add(20 * time.Second)}
 
 	return true
 }
@@ -134,7 +136,7 @@ func (b *fam100Bot) handleDisabled(msg *bot.Message) bool {
 
 	if disabledMsg != "" {
 		log.Debug("channel is disabled", zap.String("chanID", chanID), zap.String("msg", disabledMsg))
-		b.out <- bot.Message{Chat: bot.Chat{ID: chanID}, Text: disabledMsg, Format: bot.Markdown}
+		b.out <- bot.Message{Chat: bot.Chat{ID: chanID}, Text: disabledMsg, Format: bot.Markdown, DiscardAfter: time.Now().Add(5 * time.Second)}
 		return true
 	}
 
