@@ -25,6 +25,7 @@ var (
 	logLevel             int
 	minQuorum            = 3 // minimum players to start game
 	graphiteURL          = ""
+	graphiteWebURL       = ""
 	quorumWait           = 120 * time.Second
 	telegramInBufferSize = 10000
 	gameInBufferSize     = 10000
@@ -35,7 +36,7 @@ var (
 	timeoutChan          = make(chan string, 10000)
 	finishedChan         = make(chan string, 10000)
 	adminID              = ""
-	httpTimeout          = 10 * time.Second
+	httpTimeout          = 10
 	roundDuration        = 90
 	blockProfileRate     = 0
 	plugin               = fam100Bot{}
@@ -64,9 +65,11 @@ func main() {
 	flag.StringVar(&adminID, "admin", "", "admin id")
 	flag.IntVar(&minQuorum, "quorum", 3, "minimal channel quorum")
 	flag.StringVar(&graphiteURL, "graphite", "", "graphite url, empty to disable")
+	flag.StringVar(&graphiteWebURL, "graphiteWeb", "", "graphite web url, empty to disable")
 	flag.IntVar(&roundDuration, "roundDuration", 90, "round duration in second")
 	flag.IntVar(&defaultQuestionLimit, "questionLimit", -1, "set default question limit")
 	flag.IntVar(&blockProfileRate, "blockProfile", 0, "enable go routine blockProfile for profiling rate set to 1000000000 for sampling every sec")
+	flag.IntVar(&httpTimeout, "httpTimeout", 10, "http timeout in Second")
 	logLevel := zap.LevelFlag("v", zap.InfoLevel, "log level: all, debug, info, warn, error, panic, fatal, none")
 	flag.Parse()
 
@@ -78,17 +81,28 @@ func main() {
 		log.Info("http listener", zap.Error(http.ListenAndServe("localhost:5050", nil)))
 	}()
 
+	go func() {
+		sigchan := make(chan os.Signal, 1)
+		signal.Notify(sigchan, os.Interrupt, syscall.SIGTERM)
+
+		<-sigchan
+		postEvent("fam100 shutdown", "shutdown", fmt.Sprintf("shutdown version:%s buildtime:%s", VERSION, BUILDTIME))
+		log.Info("STOPED", zap.String("version", VERSION), zap.String("buildtime", BUILDTIME))
+		os.Exit(0)
+	}()
+
 	// setup logger
 	log.SetLevel(*logLevel)
 	bot.SetLogger(log)
 	fam100.SetLogger(log)
 	log.Info("Fam100 STARTED", zap.String("version", VERSION), zap.String("buildtime", BUILDTIME))
+	postEvent("startup", "startup", fmt.Sprintf("startup version:%s buildtime:%s", VERSION, BUILDTIME))
 
 	key := os.Getenv("TELEGRAM_KEY")
 	if key == "" {
 		log.Fatal("TELEGRAM_KEY can not be empty")
 	}
-	http.DefaultClient.Timeout = httpTimeout
+	http.DefaultClient.Timeout = time.Duration(httpTimeout) * time.Second
 	fam100.RoundDuration = time.Duration(roundDuration) * time.Second
 	handleSignal()
 
