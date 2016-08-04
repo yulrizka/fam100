@@ -40,6 +40,7 @@ var (
 	roundDuration        = 90
 	blockProfileRate     = 0
 	plugin               = fam100Bot{}
+	outboxWorker         = 0
 
 	// compiled time information
 	VERSION   = ""
@@ -70,6 +71,7 @@ func main() {
 	flag.IntVar(&defaultQuestionLimit, "questionLimit", -1, "set default question limit")
 	flag.IntVar(&blockProfileRate, "blockProfile", 0, "enable go routine blockProfile for profiling rate set to 1000000000 for sampling every sec")
 	flag.IntVar(&httpTimeout, "httpTimeout", 10, "http timeout in Second")
+	flag.IntVar(&outboxWorker, "outboxWorker", 0, "telegram outbox sender worker")
 	logLevel := zap.LevelFlag("v", zap.InfoLevel, "log level: all, debug, info, warn, error, panic, fatal, none")
 	flag.Parse()
 
@@ -117,6 +119,9 @@ func main() {
 	}
 	if defaultQuestionLimit >= 0 {
 		fam100.DefaultQuestionLimit = defaultQuestionLimit
+	}
+	if outboxWorker > 0 {
+		bot.OutboxWorker = outboxWorker
 	}
 	log.Info("Question limit ", zap.Int("fam100.DefaultQuestionLimit", fam100.DefaultQuestionLimit))
 
