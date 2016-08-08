@@ -26,7 +26,7 @@ var (
 	minQuorum            = 3 // minimum players to start game
 	graphiteURL          = ""
 	graphiteWebURL       = ""
-	quorumWait           = 120 * time.Second
+	quorumWait           = 120
 	telegramInBufferSize = 10000
 	gameInBufferSize     = 10000
 	gameOutBufferSize    = 10000
@@ -41,6 +41,7 @@ var (
 	blockProfileRate     = 0
 	plugin               = fam100Bot{}
 	outboxWorker         = 0
+	maxActiveGame        = 400
 
 	// compiled time information
 	VERSION   = ""
@@ -72,6 +73,8 @@ func main() {
 	flag.IntVar(&blockProfileRate, "blockProfile", 0, "enable go routine blockProfile for profiling rate set to 1000000000 for sampling every sec")
 	flag.IntVar(&httpTimeout, "httpTimeout", 10, "http timeout in Second")
 	flag.IntVar(&outboxWorker, "outboxWorker", 0, "telegram outbox sender worker")
+	flag.IntVar(&maxActiveGame, "maxActiveGame", 400, "maximum active game limit")
+	flag.IntVar(&quorumWait, "quorumWaitSecond", 120, "waiting quorim time before canceled")
 	logLevel := zap.LevelFlag("v", zap.InfoLevel, "log level: all, debug, info, warn, error, panic, fatal, none")
 	flag.Parse()
 
@@ -106,6 +109,8 @@ func main() {
 	}
 	http.DefaultClient.Timeout = time.Duration(httpTimeout) * time.Second
 	fam100.RoundDuration = time.Duration(roundDuration) * time.Second
+	gameQueue = make(chan struct{}, maxActiveGame)
+
 	handleSignal()
 
 	dbPath := "fam100.db"
@@ -354,6 +359,7 @@ func (b *fam100Bot) handleOutbox() {
 					roundTimeoutCount.Inc(1)
 
 				case fam100.Finished:
+					<-gameQueue
 					gameFinishedCount.Inc(1)
 					finishedChan <- msg.ChanID
 				}
@@ -441,12 +447,13 @@ func (c *channel) startQuorumTimer(wait time.Duration, out chan bot.Message) {
 	var ctx context.Context
 	ctx, c.cancelTimer = context.WithCancel(context.Background())
 	go func() {
-		endAt := time.Now().Add(quorumWait)
+		endAt := time.Now().Add(time.Duration(quorumWait) * time.Second)
 		notify := []int64{30}
 
 		for {
 			if len(notify) == 0 {
 				timeoutChan <- c.ID
+				<-gameQueue
 				return
 			}
 			timeLeft := time.Duration(notify[0]) * time.Second
@@ -482,7 +489,7 @@ func (c *channel) startQuorumNotifyTimer(wait time.Duration, out chan bot.Messag
 				fam100.T("<b>%s</b> OK, butuh %d orang lagi, sisa waktu %s"),
 				escape(strings.Join(players, ", ")),
 				minQuorum-len(c.quorumPlayer),
-				quorumWait,
+				time.Duration(quorumWait)*time.Second,
 			)
 			out <- bot.Message{Chat: bot.Chat{ID: c.ID}, Text: text, Format: bot.HTML, DiscardAfter: time.Now().Add(5 * time.Second)}
 			c.cancelNotifyTimer = nil

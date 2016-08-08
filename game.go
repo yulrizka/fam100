@@ -102,6 +102,7 @@ type State string
 
 // Available state
 const (
+	Queued        State = "queued"
 	Created       State = "created"
 	Started       State = "started"
 	Finished      State = "finished"
@@ -138,7 +139,7 @@ func NewGame(chanID, chanName string, in, out chan Message) (r *Game, err error)
 		ID:               int64(rand.Int31()),
 		ChanID:           chanID,
 		ChanName:         chanName,
-		State:            Created,
+		State:            Queued,
 		players:          make(map[PlayerID]Player),
 		seed:             seed,
 		TotalRoundPlayed: totalRoundPlayed,

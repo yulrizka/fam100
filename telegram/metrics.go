@@ -34,6 +34,8 @@ var (
 	gameFinishedCount    = metrics.NewRegisteredCounter("game.finished.count", metrics.DefaultRegistry)
 	answerCorrectCount   = metrics.NewRegisteredCounter("answer.correct.count", metrics.DefaultRegistry)
 
+	gameWaitingTimer = metrics.NewRegisteredTimer("game.waiting.ns", metrics.DefaultRegistry)
+
 	channelTotal    = metrics.NewRegisteredGauge("channel.total", metrics.DefaultRegistry)
 	playerTotal     = metrics.NewRegisteredGauge("player.total", metrics.DefaultRegistry)
 	gameActiveTotal = metrics.NewRegisteredGauge("game.active.total", metrics.DefaultRegistry)

@@ -13,8 +13,12 @@ import (
 	"github.com/yulrizka/fam100"
 )
 
-// cmdRateDelay is time before we serve score command
-var cmdRateDelay = 30 * time.Second
+var (
+	// cmdRateDelay is time before we serve score command
+	cmdRateDelay = 30 * time.Second
+
+	gameQueue chan struct{}
+)
 
 var lastCmdRequest = make(map[string]time.Time)
 
@@ -49,21 +53,69 @@ func (b *fam100Bot) cmdJoin(msg *bot.Message) bool {
 			ch.game.Start()
 			return true
 		}
-		ch.startQuorumTimer(quorumWait, b.out)
-		ch.startQuorumNotifyTimer(5*time.Second, b.out)
 		log.Info("User joined", zap.String("playerID", msg.From.ID), zap.String("chanID", chanID))
+
+		go func() {
+			start := time.Now()
+			// handle queueing
+			shouldBeQueued := true
+			if queueConf, err := fam100.DefaultDB.ChannelConfig(chanID, "queued", ""); err == nil && queueConf == "no" {
+				shouldBeQueued = false
+			}
+
+			select {
+			case gameQueue <- struct{}{}:
+				game.State = fam100.Created
+			default:
+				if !shouldBeQueued {
+					break
+				}
+
+				// it's waiting for the queue
+				text := fmt.Sprintf(
+					"game telah dimasukkan dalam antrian, rata-rata waktu antrian <b>%.0fs</b>.\nUser lain dapat tetap melakukan '/join@fam100bot'. Game akan dimulai automatis ketika antrian selesai",
+					time.Duration(gameWaitingTimer.Mean()).Seconds())
+
+				b.out <- bot.Message{Chat: bot.Chat{ID: chanID}, Text: text, Format: bot.HTML, DiscardAfter: time.Now().Add(5 * time.Second)}
+				log.Info("game in queue", zap.Int64("gameID", game.ID), zap.String("chanID", chanID))
+
+				gameQueue <- struct{}{} // wait until it's available
+				gameWaitingTimer.UpdateSince(start)
+				game.State = fam100.Created
+
+				// maybe it's already quorum after finished waiting
+				if len(ch.quorumPlayer) == minQuorum {
+					ch.game.Start()
+					return
+				}
+			}
+
+			ch.startQuorumTimer(time.Duration(quorumWait)*time.Second, b.out)
+			ch.startQuorumNotifyTimer(5*time.Second, b.out)
+		}()
 		return true
 	}
 
-	if ch.game.State != fam100.Created || ch.quorumPlayer[msg.From.ID] {
+	switch {
+	case ch.game.State == fam100.Queued:
+	case ch.game.State == fam100.Created:
+	case ch.quorumPlayer[msg.From.ID]:
+		return true
+	default:
 		return true
 	}
 
 	// new player joined
 	playerJoinedCount.Inc(1)
-	ch.cancelTimer()
 	ch.quorumPlayer[msg.From.ID] = true
 	ch.players[msg.From.ID] = msg.From.FullName()
+
+	if ch.game.State == fam100.Queued {
+		return true
+	}
+
+	// state is Created, waiting for quorum
+	ch.cancelTimer()
 	if len(ch.quorumPlayer) == minQuorum {
 		if ch.cancelNotifyTimer != nil {
 			ch.cancelNotifyTimer()
@@ -71,7 +123,7 @@ func (b *fam100Bot) cmdJoin(msg *bot.Message) bool {
 		ch.game.Start()
 		return true
 	}
-	ch.startQuorumTimer(quorumWait, b.out)
+	ch.startQuorumTimer(time.Duration(quorumWait)*time.Second, b.out)
 	if ch.cancelNotifyTimer == nil {
 		ch.startQuorumNotifyTimer(5*time.Second, b.out)
 	}
@@ -114,7 +166,7 @@ func (b *fam100Bot) cmdScore(msg *bot.Message) bool {
 		rank, err := fam100.DefaultDB.ChannelRanking(chanID, 20)
 		if err != nil {
 			log.Error("getting channel ranking failed", zap.String("chanID", chanID), zap.Error(err))
-			return true
+			return
 		}
 
 		text := "<b>Top Score:</b>\n" + formatRankText(rank)
