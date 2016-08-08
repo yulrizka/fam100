@@ -3,6 +3,88 @@ layout: default
 ---
 # Changelog
 
+## v0.5.24 (2016-08-04)
+
+* Parameterized outbox worker
+
+## v0.5.23 (2016-08-04)
+
+* Post event when starting up & shutting down
+
+## v0.5.22 (2016-07-31)
+
+* update using bot v0.1.1
+
+## v0.5.21 (2016-07-31)
+
+* format join notification
+
+## v0.5.20 (2016-07-31)
+
+* batch join acknowledgement in 5 sec
+
+## v0.5.19 (2016-07-31)
+
+* reduce time-left messages
+
+## v0.5.18 (2016-07-31)
+
+* add retry to important message
+
+## v0.5.17 (2016-07-31)
+
+* lower threshold for unimportant message
+
+## v0.5.16 (2016-07-31)
+
+* remove retry from sending message
+
+## v0.5.15 (2016-07-31)
+
+* discard unimportant message after x sec
+
+## v0.5.14 (2016-07-31)
+
+* remove unused statistics
+
+## v0.5.13 (2016-07-29)
+
+* log error while failed updating last played
+
+## v0.5.12 (2016-07-28)
+
+* log error while failed updating round played
+
+## v0.5.11 (2016-07-27)
+
+* ad ID to game and round
+* disable /help command (reduce trafic)
+
+## v0.5.10 (2016-07-25)
+
+* add more metrics and sample query every 1 second
+
+## v0.5.9 (2016-07-25)
+
+* add more metric while handling messages
+
+## v0.5.8 (2016-07-21)
+
+* add database & command handling metrics
+
+## v0.5.7 (2016-07-20)
+
+* add latency metrics
+
+## v0.5.6 (2016-07-20)
+
+* add configurable blocking profiler
+* default question limit at 80%
+
+## v0.5.5 (2016-07-20)
+
+* add remote proviling
+
 ## v0.5.4 (2016-07-18)
 
 * optimize correct answer message (batch every 10 seconds)
