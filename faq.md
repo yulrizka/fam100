@@ -80,6 +80,11 @@ Apabila anda menambahkan ingin berkontribusi, anda dapat melihat [daftar issue](
 atau berbicara di group [famili100dev]
 <br/><br/>
 
+### Kenapa bot kadang suka lambat dalam response
+
+Baca [disini](http://labs.yulrizka.com/fam100/2016/08/02/why-is-the-bot-slow-sometimes.html)
+<br/><br/>
+
 [telegram]: https://telegram.org/ "Telegram"
 [fam100bot]: http://telegram.me/fam100bo://telegram.me/fam100bot "@fam100bot"
 [famili100]: https://telegram.me/famili100 "#famili100"
