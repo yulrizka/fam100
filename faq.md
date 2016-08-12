@@ -12,6 +12,7 @@ layout: default
 * [Saya menemukan error, salah eja dan ingin melaporkan masalah](#saya-menemukan-error-salah-eja-dan-ingin-melaporkan-masalah)
 * [Ada orang yang berlaku tidak baik di #famili100](#ada-orang-yang-berlaku-tidak-baik-di-famili100)
 * [Bagaimana cara membuat bot seperti ini](#bagaimana-cara-membuat-bot-seperti-ini)
+* [Kenapa bot kadang suka lambat dalam response](#kenapa-bot-kadang-suka-lambat-dalam-response)
 
 ### Bagai mana cara bermain game famili 100?
 
