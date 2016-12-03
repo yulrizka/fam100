@@ -1,0 +1,73 @@
+{
+	"comment": "",
+	"ignore": "test",
+	"package": [
+		{
+			"checksumSHA1": "5WkJo4wDea0vYGp6LFnbff16Ny0=",
+			"path": "github.com/boltdb/bolt",
+			"revision": "0d9f544bb94aac29c185968483459ef74d6deb5d",
+			"revisionTime": "2016-11-21T16:51:43Z"
+		},
+		{
+			"checksumSHA1": "8/Q1JbAHUmL4sDURLq6yron4K/I=",
+			"path": "github.com/cyberdelia/go-metrics-graphite",
+			"revision": "7e54b5c2aa6eaff4286c44129c3def899dff528c",
+			"revisionTime": "2015-12-04T23:33:54Z"
+		},
+		{
+			"checksumSHA1": "2UmMbNHc8FBr98mJFN1k8ISOIHk=",
+			"path": "github.com/garyburd/redigo/internal",
+			"revision": "d7de57ceb51b029d5c5a61e26587f672e2834178",
+			"revisionTime": "2016-11-22T18:32:06Z"
+		},
+		{
+			"checksumSHA1": "6glXtCPWNk5uwBFXXitClu/7J8Y=",
+			"path": "github.com/garyburd/redigo/redis",
+			"revision": "d7de57ceb51b029d5c5a61e26587f672e2834178",
+			"revisionTime": "2016-11-22T18:32:06Z"
+		},
+		{
+			"checksumSHA1": "8z32QKTSDusa4QQyunKE4kyYXZ8=",
+			"path": "github.com/patrickmn/go-cache",
+			"revision": "e7a9def80f35fe1b170b7b8b68871d59dea117e1",
+			"revisionTime": "2016-11-25T23:48:19Z"
+		},
+		{
+			"checksumSHA1": "KAzbLjI9MzW2tjfcAsK75lVRp6I=",
+			"path": "github.com/rcrowley/go-metrics",
+			"revision": "1f30fe9094a513ce4c700b9a54458bbb0c96996c",
+			"revisionTime": "2016-11-28T21:05:44Z"
+		},
+		{
+			"checksumSHA1": "NOIORNvcbiu9ksBXlVe57DToOVQ=",
+			"path": "github.com/uber-go/atomic",
+			"revision": "9e99152552a6ce13fa3b2ce4a9c4fb117cca4506",
+			"revisionTime": "2016-10-27T16:36:08Z"
+		},
+		{
+			"checksumSHA1": "64OsuYaW5ei2s7Vvu8MF08mPoW8=",
+			"path": "github.com/uber-go/zap",
+			"revision": "2a8f287b5620c77c427ac78d29bda4af737f2f00",
+			"revisionTime": "2016-12-02T01:51:19Z"
+		},
+		{
+			"checksumSHA1": "mdwbweyfQLHRRqYJVdJbh4Qs+bE=",
+			"path": "github.com/yulrizka/bot",
+			"revision": "79c5fdb729b9e04424cea9699003317c73f2c4ca",
+			"revisionTime": "2016-12-03T02:31:00Z"
+		},
+		{
+			"checksumSHA1": "9jjO5GjLa0XF/nfWihF02RoH4qc=",
+			"path": "golang.org/x/net/context",
+			"revision": "6cdc0daab091c43fc46193327e0047b4f883c613",
+			"revisionTime": "2016-11-30T01:20:33Z"
+		},
+		{
+			"checksumSHA1": "Mk0HzIHe8LoPSTkLvGLAvwUtUcQ=",
+			"path": "golang.org/x/sys/unix",
+			"revision": "ca83bd2cb9abb47839b50eb4da612f00158f5870",
+			"revisionTime": "2016-12-02T05:54:46Z"
+		}
+	],
+	"rootPath": "github.com/yulrizka/fam100"
+}
