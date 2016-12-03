@@ -108,19 +108,17 @@ func (b *fam100Bot) cmdScore(msg *bot.Message) bool {
 		return true
 	}
 
-	go func() {
-		commandScoreCount.Inc(1)
-		chanID := msg.Chat.ID
-		rank, err := fam100.DefaultDB.ChannelRanking(chanID, 20)
-		if err != nil {
-			log.Error("getting channel ranking failed", zap.String("chanID", chanID), zap.Error(err))
-			return true
-		}
+	commandScoreCount.Inc(1)
+	chanID := msg.Chat.ID
+	rank, err := fam100.DefaultDB.ChannelRanking(chanID, 20)
+	if err != nil {
+		log.Error("getting channel ranking failed", zap.String("chanID", chanID), zap.Error(err))
+		return true
+	}
 
-		text := "<b>Top Score:</b>\n" + formatRankText(rank)
-		text += fmt.Sprintf("\n<a href=\"http://labs.yulrizka.com/fam100/scores.html?c=%s\">Full Score</a>", chanID)
-		b.out <- bot.Message{Chat: bot.Chat{ID: chanID}, Text: text, Format: bot.HTML, DiscardAfter: time.Now().Add(20 * time.Second)}
-	}()
+	text := "<b>Top Score:</b>\n" + formatRankText(rank)
+	text += fmt.Sprintf("\n<a href=\"http://labs.yulrizka.com/fam100/scores.html?c=%s\">Full Score</a>", chanID)
+	b.out <- bot.Message{Chat: bot.Chat{ID: chanID}, Text: text, Format: bot.HTML, DiscardAfter: time.Now().Add(20 * time.Second)}
 
 	return true
 }
