@@ -40,6 +40,7 @@ var (
 	blockProfileRate     = 0
 	plugin               = fam100Bot{}
 	outboxWorker         = 0
+	profile              = false
 )
 
 // compiled time information
@@ -72,10 +73,14 @@ func main() {
 	flag.IntVar(&blockProfileRate, "blockProfile", 0, "enable go routine blockProfile for profiling rate set to 1000000000 for sampling every sec")
 	flag.IntVar(&httpTimeout, "httpTimeout", 10, "http timeout in Second")
 	flag.IntVar(&outboxWorker, "outboxWorker", 0, "telegram outbox sender worker")
+	flag.BoolVar(&profile, "profile", false, "open go http profiler endpoint")
 	logLevel := zap.LevelFlag("v", zap.InfoLevel, "log level: all, debug, info, warn, error, panic, fatal, none")
 	flag.Parse()
 
 	go func() {
+		if !profile {
+			return
+		}
 		if blockProfileRate > 0 {
 			runtime.SetBlockProfileRate(blockProfileRate)
 			log.Info("runtime.BlockProfile is enabled", zap.Int("rate", blockProfileRate))
@@ -111,6 +116,7 @@ func main() {
 	if path := os.Getenv("QUESTION_DB_PATH"); path != "" {
 		dbPath = path
 	}
+	log.Info("loading question DB", zap.String("path", dbPath))
 	if n, err := fam100.InitQuestion(dbPath); err != nil {
 		log.Fatal("Failed loading question DB", zap.String("path", dbPath), zap.Error(err))
 	} else {
@@ -141,6 +147,7 @@ func main() {
 		log.Fatal("telegram failed", zap.Error(err))
 	}
 	plugin.name = telegram.Username()
+	log.Info("Bot started", zap.String("name", plugin.name))
 
 	if err := telegram.AddPlugin(&plugin); err != nil {
 		log.Fatal("Failed AddPlugin", zap.Error(err))
