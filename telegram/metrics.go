@@ -3,8 +3,10 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"net"
 	"net/http"
+	"os"
 	"runtime"
 	"time"
 
@@ -96,7 +98,12 @@ func initMetrics(b fam100Bot) {
 		if err != nil {
 			log.Error("failed initializing graphite", zap.Error(err))
 		} else {
-			go graphite.Graphite(metrics.DefaultRegistry, 10e9, "metrics", addr)
+			hostname, err := os.Hostname()
+			if err != nil {
+				log.Fatal("hostname lookup failed", zap.Error(err))
+			}
+			prefix := fmt.Sprintf("%s.%s", hostname, b.Name())
+			go graphite.Graphite(metrics.DefaultRegistry, 10e9, prefix, addr)
 		}
 	}
 	go func() {

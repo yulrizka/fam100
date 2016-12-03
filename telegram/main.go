@@ -31,7 +31,6 @@ var (
 	gameInBufferSize     = 10000
 	gameOutBufferSize    = 10000
 	defaultQuestionLimit = 0
-	botName              = "fam100bot"
 	startedAt            time.Time
 	timeoutChan          = make(chan string, 10000)
 	finishedChan         = make(chan string, 10000)
@@ -64,7 +63,6 @@ func init() {
 }
 
 func main() {
-	flag.StringVar(&botName, "botname", "fam100bot", "bot name")
 	flag.StringVar(&adminID, "admin", "", "admin id")
 	flag.IntVar(&minQuorum, "quorum", 3, "minimal channel quorum")
 	flag.StringVar(&graphiteURL, "graphite", "", "graphite url, empty to disable")
@@ -96,7 +94,7 @@ func main() {
 	}()
 
 	// setup logger
-	log = logger{zap.New(zap.NewJSONEncoder(), zap.AddCaller(), zap.AddStacks(*logLevel))}
+	log = logger{zap.New(zap.NewJSONEncoder(), zap.AddCaller(), zap.AddStacks(zap.ErrorLevel), *logLevel)}
 	bot.SetLogger(log)
 	fam100.SetLogger(log)
 	log.Info("Fam100 STARTED", zap.String("version", VERSION), zap.String("buildtime", BUILDTIME))
@@ -114,7 +112,7 @@ func main() {
 		dbPath = path
 	}
 	if n, err := fam100.InitQuestion(dbPath); err != nil {
-		log.Fatal("Failed loading question DB", zap.Error(err))
+		log.Fatal("Failed loading question DB", zap.String("path", dbPath), zap.Error(err))
 	} else {
 		log.Info("Question loaded", zap.Int("nQuestion", n))
 	}
@@ -138,7 +136,12 @@ func main() {
 		log.Fatal("Failed loading DB", zap.Error(err))
 	}
 	startedAt = time.Now()
-	telegram := bot.NewTelegram(key)
+	telegram, err := bot.NewTelegram(key)
+	if err != nil {
+		log.Fatal("telegram failed", zap.Error(err))
+	}
+	plugin.name = telegram.Username()
+
 	if err := telegram.AddPlugin(&plugin); err != nil {
 		log.Fatal("Failed AddPlugin", zap.Error(err))
 	}
@@ -153,14 +156,15 @@ type fam100Bot struct {
 	in       chan interface{}
 	out      chan bot.Message
 	channels map[string]*channel
+	name     string
 
 	// channel to communicate with game
 	gameOut chan fam100.Message
 	quit    chan struct{}
 }
 
-func (*fam100Bot) Name() string {
-	return "Fam100Bot"
+func (b *fam100Bot) Name() string {
+	return b.name
 }
 
 func (b *fam100Bot) Init(out chan bot.Message) (in chan interface{}, err error) {
@@ -239,19 +243,19 @@ func (b *fam100Bot) handleInbox() {
 
 				// ## Handle Commands ##
 				switch msg.Text {
-				case "/join", "/join@" + botName:
+				case "/join", "/join@" + b.name:
 					if b.cmdJoin(msg) {
 						mainHandleJoinTimer.UpdateSince(start)
 						mainHandleMessageTimer.UpdateSince(start)
 						continue
 					}
-				case "/score", "/score@" + botName:
+				case "/score", "/score@" + b.name:
 					if b.cmdScore(msg) {
 						mainHandleScoreTimer.UpdateSince(start)
 						mainHandleMessageTimer.UpdateSince(start)
 						continue
 					}
-				case "/help", "/help@" + botName:
+				case "/help", "/help@" + b.name:
 					continue
 					/*
 						if b.cmdHelp(msg) {
@@ -307,7 +311,7 @@ func (b *fam100Bot) handleInbox() {
 // handleChannelMigration handles if channel is migrated from group -> supergroup (telegram specific)
 func (b *fam100Bot) handleChannelMigration(msg *bot.ChannelMigratedMessage) bool {
 	channelMigratedCount.Inc(1)
-	chanID := msg.Chat.ID
+	chanID := msg.FromID
 	if ch, exists := b.channels[chanID]; exists {
 		// TODO migrate channel score
 		newID := msg.ToID
