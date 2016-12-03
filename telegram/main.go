@@ -41,8 +41,10 @@ var (
 	blockProfileRate     = 0
 	plugin               = fam100Bot{}
 	outboxWorker         = 0
+)
 
-	// compiled time information
+// compiled time information
+var (
 	VERSION   = ""
 	BUILDTIME = ""
 )
@@ -57,7 +59,7 @@ func (l logger) Error(msg string, fields ...zap.Field) {
 }
 
 func init() {
-	log = logger{zap.NewJSON(zap.AddCaller(), zap.AddStacks(zap.FatalLevel))}
+	log = logger{zap.New(zap.NewJSONEncoder(), zap.AddCaller(), zap.AddStacks(zap.FatalLevel))}
 	fam100.ExtraQuestionSeed = 1
 }
 
@@ -94,7 +96,7 @@ func main() {
 	}()
 
 	// setup logger
-	log.SetLevel(*logLevel)
+	log = logger{zap.New(zap.NewJSONEncoder(), zap.AddCaller(), zap.AddStacks(*logLevel))}
 	bot.SetLogger(log)
 	fam100.SetLogger(log)
 	log.Info("Fam100 STARTED", zap.String("version", VERSION), zap.String("buildtime", BUILDTIME))
@@ -106,7 +108,6 @@ func main() {
 	}
 	http.DefaultClient.Timeout = time.Duration(httpTimeout) * time.Second
 	fam100.RoundDuration = time.Duration(roundDuration) * time.Second
-	handleSignal()
 
 	dbPath := "fam100.db"
 	if path := os.Getenv("QUESTION_DB_PATH"); path != "" {
@@ -486,25 +487,6 @@ func (c *channel) startQuorumNotifyTimer(wait time.Duration, out chan bot.Messag
 			)
 			out <- bot.Message{Chat: bot.Chat{ID: c.ID}, Text: text, Format: bot.HTML, DiscardAfter: time.Now().Add(5 * time.Second)}
 			c.cancelNotifyTimer = nil
-		}
-	}()
-}
-
-func handleSignal() {
-	c := make(chan os.Signal, 1)
-	signal.Notify(c, syscall.SIGUSR1)
-
-	var prev = log.Level()
-	go func() {
-		for {
-			<-c
-			if log.Level() == zap.DebugLevel {
-				log.SetLevel(prev)
-			} else {
-				prev = log.Level()
-				log.SetLevel(zap.DebugLevel)
-			}
-			log.Info("log level switched to", zap.String("level", log.Level().String()))
 		}
 	}()
 }

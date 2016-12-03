@@ -45,6 +45,7 @@ var (
 	cNameKey, cConfigKey, gConfigKey                              string
 )
 
+// DefaultDB default question database
 var DefaultDB db
 
 func init() {
@@ -350,7 +351,7 @@ func (r RedisDB) getScore(key string, playerID PlayerID) (ps PlayerScore, err er
 	return ps, nil
 }
 
-// MemoryDb stores data in non persistence way
+// MemoryDB stores data in non persistence way
 type MemoryDB struct {
 	Seed   int64
 	played int

@@ -10,6 +10,7 @@ import (
 	"github.com/uber-go/zap"
 )
 
+// Bot configuration
 var (
 	RoundDuration        = 90 * time.Second
 	tickDuration         = 10 * time.Second
@@ -23,7 +24,7 @@ var (
 )
 
 func init() {
-	log = zap.NewJSON()
+	log = zap.New(zap.NewJSONEncoder())
 	go func() {
 		for range time.Tick(30 * time.Second) {
 			playerActive.Update(int64(playerActiveMap.ItemCount()))

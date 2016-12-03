@@ -11,12 +11,12 @@ import (
 	"github.com/boltdb/bolt"
 )
 
+// Database configuration
 var (
-	// DB question database
 	DefaultQuestionDB QuestionDB
 	QuestionBucket    = []byte("questions")
 
-	// Add to the existing seed
+	// ExtraQuestionSeed seed the random for question
 	ExtraQuestionSeed = int64(0)
 )
 
