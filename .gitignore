@@ -2,6 +2,7 @@ fam100
 fam100.db
 cli/cli
 telegram/telegram
+telegram/fam100_*
 telegram/fam100.db
 scoreexport/scoreexport
 scoreexport/scores
