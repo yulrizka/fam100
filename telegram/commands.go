@@ -68,15 +68,13 @@ func (b *fam100Bot) cmdJoin(msg *bot.Message) bool {
 				game.State = fam100.Created
 			default:
 				if !shouldBeQueued {
-					game.State = fam100.Created
 					break
 				}
 
 				// it's waiting for the queue
 				text := fmt.Sprintf(
-					"game telah dimasukkan dalam antrian, rata-rata waktu antrian <b>%.0fs</b>. User lain dapat tetap melakukan '/join@%s'. Game akan dimulai automatis ketika antrian selesai",
-					time.Duration(gameWaitingTimer.Mean()).Seconds(),
-					botName)
+					"game telah dimasukkan dalam antrian, rata-rata waktu antrian <b>%.0fs</b>.\nUser lain dapat tetap melakukan '/join@fam100bot'. Game akan dimulai automatis ketika antrian selesai",
+					time.Duration(gameWaitingTimer.Mean()).Seconds())
 
 				b.out <- bot.Message{Chat: bot.Chat{ID: chanID}, Text: text, Format: bot.HTML, DiscardAfter: time.Now().Add(5 * time.Second)}
 				log.Info("game in queue", zap.Int64("gameID", game.ID), zap.String("chanID", chanID))
@@ -88,7 +86,7 @@ func (b *fam100Bot) cmdJoin(msg *bot.Message) bool {
 				game.State = fam100.Created
 
 				// maybe it's already quorum after finished waiting
-				if len(ch.quorumPlayer) >= minQuorum {
+				if len(ch.quorumPlayer) == minQuorum {
 					ch.game.Start()
 					return
 				}
@@ -120,7 +118,7 @@ func (b *fam100Bot) cmdJoin(msg *bot.Message) bool {
 
 	// state is Created, waiting for quorum
 	ch.cancelTimer()
-	if len(ch.quorumPlayer) >= minQuorum {
+	if len(ch.quorumPlayer) == minQuorum {
 		if ch.cancelNotifyTimer != nil {
 			ch.cancelNotifyTimer()
 		}
