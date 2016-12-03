@@ -1,31 +1,51 @@
 package bot
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"time"
 )
 
-// Message represents chat message
-type Message struct {
-	ID             string
-	From           User
-	Date           time.Time
-	Chat           Chat
-	Text           string
-	Format         MessageFormat
-	ReplyMessageID string
-	ReceivedAt     time.Time
-	Raw            json.RawMessage `json:"-"`
-	Retry          int             `json:"-"`
-	DiscardAfter   time.Time       `json:"-"`
+// Client represent a chat client. Currently supports telegram
+type Client interface {
+	AddPlugin(Plugin) error
+	Start()
+	Username() string // bot username
 }
 
+// Message represents chat message
+type Message struct {
+	ID           string
+	From         User
+	Date         time.Time
+	Chat         Chat
+	Text         string
+	Format       MessageFormat
+	ReplyTo      *Message
+	ReplyToID    string
+	ReceivedAt   time.Time
+	Raw          json.RawMessage `json:"-"`
+	Retry        int             `json:"-"`
+	DiscardAfter time.Time       `json:"-"`
+}
+
+// JoinMessage represents information that a user join a chat
+type JoinMessage struct {
+	*Message
+}
+
+// LeftMessage represents information that a user left a chat
+type LeftMessage struct {
+	*Message
+}
+
+// ChannelMigratedMessage represents that a chat type has been upgraded. Currently works on telegram
 type ChannelMigratedMessage struct {
-	Message
 	FromID     string
 	ToID       string
 	ReceivedAt time.Time
+	Raw        json.RawMessage `json:"-"`
 }
 
 // MessageFormat represents formatting of the message
@@ -71,6 +91,19 @@ type Chat struct {
 	Type     ChatType
 	Title    string
 	Username string
+}
+
+// Name returns the title of the chat
+func (t Chat) Name() string {
+	var buf bytes.Buffer
+	buf.WriteString(t.Title)
+	if t.Username != "" {
+		buf.WriteString(" (@")
+		buf.WriteString(t.Username)
+		buf.WriteString(")")
+	}
+
+	return buf.String()
 }
 
 // Plugin is pluggable module to process messages
