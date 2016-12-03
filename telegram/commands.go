@@ -79,9 +79,7 @@ func (b *fam100Bot) cmdJoin(msg *bot.Message) bool {
 				b.out <- bot.Message{Chat: bot.Chat{ID: chanID}, Text: text, Format: bot.HTML, DiscardAfter: time.Now().Add(5 * time.Second)}
 				log.Info("game in queue", zap.Int64("gameID", game.ID), zap.String("chanID", chanID))
 
-				gameCurrentQueuedCount.Inc(1)
 				gameQueue <- struct{}{} // wait until it's available
-				gameCurrentQueuedCount.Dec(1)
 				gameWaitingTimer.UpdateSince(start)
 				game.State = fam100.Created
 
@@ -91,7 +89,7 @@ func (b *fam100Bot) cmdJoin(msg *bot.Message) bool {
 					return
 				}
 			}
-			gameCurrentQuorumCount.Inc(1)
+
 			ch.startQuorumTimer(time.Duration(quorumWait)*time.Second, b.out)
 			ch.startQuorumNotifyTimer(5*time.Second, b.out)
 		}()
@@ -122,8 +120,6 @@ func (b *fam100Bot) cmdJoin(msg *bot.Message) bool {
 		if ch.cancelNotifyTimer != nil {
 			ch.cancelNotifyTimer()
 		}
-
-		gameCurrentQuorumCount.Dec(1)
 		ch.game.Start()
 		return true
 	}

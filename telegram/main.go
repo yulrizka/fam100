@@ -100,11 +100,7 @@ func main() {
 	log.SetLevel(*logLevel)
 	bot.SetLogger(log)
 	fam100.SetLogger(log)
-	log.Info("Fam100 STARTED",
-		zap.String("version", VERSION),
-		zap.String("buildtime", BUILDTIME),
-		zap.Int("maxActiveGame", maxActiveGame),
-	)
+	log.Info("Fam100 STARTED", zap.String("version", VERSION), zap.String("buildtime", BUILDTIME))
 	postEvent("startup", "startup", fmt.Sprintf("startup version:%s buildtime:%s", VERSION, BUILDTIME))
 
 	key := os.Getenv("TELEGRAM_KEY")
@@ -345,8 +341,6 @@ func (b *fam100Bot) handleOutbox() {
 
 			case fam100.StateMessage:
 				switch msg.State {
-				case fam100.Started:
-					gameCurrentActiveCount.Inc(1)
 				case fam100.RoundStarted:
 					var text string
 					if msg.Round == 1 {
@@ -366,7 +360,6 @@ func (b *fam100Bot) handleOutbox() {
 
 				case fam100.Finished:
 					<-gameQueue
-					gameCurrentActiveCount.Dec(1)
 					gameFinishedCount.Inc(1)
 					finishedChan <- msg.ChanID
 				}
@@ -461,7 +454,6 @@ func (c *channel) startQuorumTimer(wait time.Duration, out chan bot.Message) {
 			if len(notify) == 0 {
 				timeoutChan <- c.ID
 				<-gameQueue
-				gameCurrentQuorumCount.Dec(1)
 				return
 			}
 			timeLeft := time.Duration(notify[0]) * time.Second
