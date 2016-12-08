@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/pkg/errors"
 	"github.com/rcrowley/go-metrics"
 	"github.com/uber-go/zap"
 )
@@ -200,12 +201,12 @@ func NewTelegram(key string) (*Telegram, error) {
 
 	tresp, err := t.do("getMe")
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "getMe failed")
 	}
 
 	var user TUser
 	if err := json.Unmarshal(tresp.Result, &user); err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "failed decoding response")
 	}
 	t.username = user.Username
 
