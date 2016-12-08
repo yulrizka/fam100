@@ -1,45 +1,50 @@
 package qa
 
 import (
-	"strings"
+	"reflect"
 	"testing"
 )
 
-func TestBolt(t *testing.T) {
-	// DB setup
-	db, err := NewBolt("test.db")
+var ()
+
+func TestQuestionString(t *testing.T) {
+	q := Question{
+		ID:   5,
+		Text: "Question text",
+		Answers: []Answer{
+			{Text: []string{"Answer 1", "alias Answer 1"}, Score: 10},
+			{Text: []string{"answer 2"}, Score: 20},
+		},
+		Status: Pending,
+		Active: true,
+	}
+	got := q.Format()
+	want := "5;question text;10:answer 1 / alias answer 1*20:answer 2;pending;true"
+
+	if got != want {
+		t.Errorf("got %q want %q", got, want)
+	}
+}
+
+func TestParse(t *testing.T) {
+	got, err := Parse("5;question text;10:answer 1 / alias answer 1*20:answer 2;pending;true")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	t.Run("getQuestion", func(t *testing.T) {
-		q, err := db.GetQuestion("1")
-		if err != nil {
-			t.Error(err)
-		}
+	want := Question{
+		ID:   5,
+		Text: "question text",
+		Answers: []Answer{
+			{Text: []string{"answer 1", "alias answer 1"}, Score: 10},
+			{Text: []string{"answer 2"}, Score: 20},
+		},
+		Status: Pending,
+		Active: true,
+	}
 
-		ans := q.Answers[1]
-		wCorrect, wScore, wIndex := true, ans.Score, 1
-		texts := []string{
-			ans.Text[0],
-			ans.Text[0] + " ",
-			" " + ans.Text[0] + " ",
-			strings.ToUpper(ans.Text[0]),
-		}
-		for _, text := range texts {
-			gCorrect, gScore, gIndex := q.checkAnswer(text)
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("got %q want %q", got, want)
+	}
 
-			if gCorrect != wCorrect || gScore != wScore {
-				t.Errorf("want: correct %t got %t, score %d got %d, index %d got %d", wCorrect, gCorrect, wScore, gScore, wIndex, gIndex)
-			}
-		}
-	})
-
-	t.Run("nextQuestion", func(t *testing.T) {
-		seed, played := int64(0), 0
-		_, err := db.NextQuestion(seed, played, 10)
-		if err != nil {
-			t.Error(err)
-		}
-	})
 }
