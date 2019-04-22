@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/boltdb/bolt"
+	"github.com/pkg/errors"
 )
 
 // Database configuration
@@ -22,7 +23,7 @@ var (
 
 func InitQuestion(dbPath string) (numQuestion int, err error) {
 	if err := DefaultQuestionDB.Initialize(dbPath); err != nil {
-		return 0, err
+		return 0, errors.Wrap(err, "db initialization failed")
 	}
 
 	questionSize := DefaultQuestionDB.questionSize
