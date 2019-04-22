@@ -27,6 +27,8 @@ github.com/uber-go/zap v0.0.0-20161123233923-11e8d8f6b3c9 h1:bTT2SHHQUzPyV09IrM+
 github.com/uber-go/zap v0.0.0-20161123233923-11e8d8f6b3c9/go.mod h1:GY+83l3yxBcBw2kmHu/sAWwItnTn+ynxHCRo+WiIQOY=
 github.com/yulrizka/bot v0.0.0-20161208190213-a48743f46936 h1:T6jakvnMnBqwtsNCfV1eWVClUvhJkGp+UHTi4FCvqfE=
 github.com/yulrizka/bot v0.0.0-20161208190213-a48743f46936/go.mod h1:jsLJHlSAFbUTJm0koKWg5+lwISF2UT/jK7SG1OrCheQ=
+github.com/yulrizka/bot v0.2.4 h1:WqfwnuJhYTbTilFbpESzP7PG8OW9RLgi1AmWLa4sFbM=
+github.com/yulrizka/bot v0.2.4/go.mod h1:sPN1hGxrtuC6NUNTRYu+r4iIsQPuYq/IRiOyrFOh+gI=
 go.uber.org/atomic v1.3.2 h1:2Oa65PReHzfn29GpvgsYwloV9AVFHPDk8tYxt2c2tr4=
 go.uber.org/atomic v1.3.2/go.mod h1:gD2HeocX3+yG+ygLZcrzQJaqmWj9AIm7n08wl/qW/PE=
 golang.org/x/net v0.0.0-20161116075034-4971afdc2f16 h1:x2xFZACPoDbV+g+48fDH/4EQTTNPgHTRko7g0JQiZws=

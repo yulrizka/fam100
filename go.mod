@@ -16,4 +16,4 @@ require (
 	golang.org/x/sys v0.0.0-20161202080326-ca83bd2cb9ab // indirect
 )
 
-replace github.com/yulrizka/bot v0.2.4 => ../bot
+// replace github.com/yulrizka/bot v0.2.4 => ../bot
