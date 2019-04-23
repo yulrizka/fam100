@@ -1,4 +1,4 @@
-package fam100
+package model
 
 import "sort"
 

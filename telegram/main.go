@@ -16,6 +16,7 @@ import (
 	"github.com/uber-go/zap"
 	"github.com/yulrizka/bot"
 	"github.com/yulrizka/fam100"
+	"github.com/yulrizka/fam100/repo"
 )
 
 var (
@@ -173,7 +174,7 @@ func main() {
 		fam100.DefaultQuestionDB.Close()
 	}()
 
-	if err := fam100.DefaultDB.Init(); err != nil {
+	if err := repo.DefaultDB.Init(); err != nil {
 		log.Fatal("Failed loading DB", zap.Error(err))
 	}
 	startedAt = time.Now()

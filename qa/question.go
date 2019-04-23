@@ -44,7 +44,7 @@ func (q Question) checkAnswer(text string) (correct bool, score, index int) {
 	return false, 0, -1
 }
 
-// Answer to a Qeustion
+// Answer to a Question
 type Answer struct {
 	ID    int
 	Text  []string

@@ -12,7 +12,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-// Database configuration
+// Database configurations
 var (
 	DefaultQuestionDB QuestionDB
 	QuestionBucket    = []byte("questions")

@@ -11,6 +11,8 @@ import (
 	"github.com/uber-go/zap"
 	"github.com/yulrizka/bot"
 	"github.com/yulrizka/fam100"
+	"github.com/yulrizka/fam100/model"
+	"github.com/yulrizka/fam100/repo"
 )
 
 type fam100Bot struct {
@@ -39,9 +41,7 @@ func (b *fam100Bot) Init(ctx context.Context, out chan bot.Message, cl bot.Clien
 	b.gameOut = make(chan fam100.Message, gameOutBufferSize)
 	b.channels = make(map[string]*channel)
 
-	log.Info("start handling outbox")
 	go b.handleOutbox()
-	log.Info("start handling inbox")
 	go b.handleInbox()
 
 	return nil
@@ -153,7 +153,7 @@ func (b *fam100Bot) handleInbox() {
 
 				// pass message to the fam100 game package
 				gameMsg := fam100.TextMessage{
-					Player:     fam100.Player{ID: fam100.PlayerID(msg.From.ID), Name: msg.From.FullName()},
+					Player:     model.Player{ID: model.PlayerID(msg.From.ID), Name: msg.From.FullName()},
 					Text:       msg.Text,
 					ReceivedAt: msg.ReceivedAt,
 				}
@@ -251,18 +251,18 @@ func (b *fam100Bot) handleOutbox() {
 					text = fam100.T("<b>Final score</b>:") + text
 
 					// show leader board, TOP 3 + current game players
-					rank, err := fam100.DefaultDB.ChannelRanking(msg.ChanID, 3)
+					rank, err := repo.DefaultDB.ChannelRanking(msg.ChanID, 3)
 					if err != nil {
 						log.Error("getting channel ranking failed", zap.String("chanID", msg.ChanID), zap.Error(err))
 						continue
 					}
-					lookup := make(map[fam100.PlayerID]bool)
+					lookup := make(map[model.PlayerID]bool)
 					for _, v := range rank {
 						lookup[v.PlayerID] = true
 					}
 					for _, v := range msg.Rank {
 						if !lookup[v.PlayerID] {
-							playerScore, err := fam100.DefaultDB.PlayerChannelScore(msg.ChanID, v.PlayerID)
+							playerScore, err := repo.DefaultDB.PlayerChannelScore(msg.ChanID, v.PlayerID)
 							if err != nil {
 								continue
 							}
@@ -366,9 +366,9 @@ func (c *channel) startQuorumNotifyTimer(wait time.Duration, out chan bot.Messag
 }
 
 func messageOfTheDay(chanID string) (string, error) {
-	msgStr, err := fam100.DefaultDB.ChannelConfig(chanID, "motd", "")
+	msgStr, err := repo.DefaultDB.ChannelConfig(chanID, "motd", "")
 	if err != nil || msgStr == "" {
-		msgStr, err = fam100.DefaultDB.GlobalConfig("motd", "")
+		msgStr, err = repo.DefaultDB.GlobalConfig("motd", "")
 	}
 	if err != nil {
 		return "", err

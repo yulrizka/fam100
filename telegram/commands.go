@@ -11,6 +11,8 @@ import (
 	"github.com/uber-go/zap"
 	"github.com/yulrizka/bot"
 	"github.com/yulrizka/fam100"
+	"github.com/yulrizka/fam100/model"
+	"github.com/yulrizka/fam100/repo"
 )
 
 // cmdRateDelay is time before we serve score command
@@ -110,7 +112,7 @@ func (b *fam100Bot) cmdScore(msg *bot.Message) bool {
 
 	commandScoreCount.Inc(1)
 	chanID := msg.Chat.ID
-	rank, err := fam100.DefaultDB.ChannelRanking(chanID, 20)
+	rank, err := repo.DefaultDB.ChannelRanking(chanID, 20)
 	if err != nil {
 		log.Error("getting channel ranking failed", zap.String("chanID", chanID), zap.Error(err))
 		return true
@@ -125,7 +127,7 @@ func (b *fam100Bot) cmdScore(msg *bot.Message) bool {
 
 func (b *fam100Bot) handleDisabled(msg *bot.Message) bool {
 	chanID := msg.Chat.ID
-	disabledMsg, _ := fam100.DefaultDB.ChannelConfig(chanID, "disabled", "")
+	disabledMsg, _ := repo.DefaultDB.ChannelConfig(chanID, "disabled", "")
 
 	if disabledMsg != "" {
 		log.Debug("channel is disabled", zap.String("chanID", chanID), zap.String("msg", disabledMsg))
@@ -161,7 +163,7 @@ func formatRoundText(msg fam100.QNAMessage) string {
 	return b.String()
 }
 
-func formatRankText(rank fam100.Rank) string {
+func formatRankText(rank model.Rank) string {
 	var b bytes.Buffer
 	w := bufio.NewWriter(&b)
 
@@ -212,7 +214,7 @@ func (b *fam100Bot) cmdChannels(msg *bot.Message) bool {
 		return true
 	}
 
-	channels, err := fam100.DefaultDB.Channels()
+	channels, err := repo.DefaultDB.Channels()
 	if err != nil {
 		b.out <- bot.Message{Chat: bot.Chat{ID: msg.Chat.ID}, Text: "channels failed. " + err.Error(), Format: bot.Markdown}
 	}
@@ -221,6 +223,7 @@ func (b *fam100Bot) cmdChannels(msg *bot.Message) bool {
 	r, err := regexp.Compile(fields[1])
 	if err != nil {
 		b.out <- bot.Message{Chat: bot.Chat{ID: msg.Chat.ID}, Text: "regex failed. " + err.Error(), Format: bot.Markdown}
+		return false
 	}
 
 	results := make(map[string]string)
@@ -261,7 +264,7 @@ func (b *fam100Bot) cmdBroadcast(msg *bot.Message) bool {
 		return true
 	}
 
-	channels, err := fam100.DefaultDB.Channels()
+	channels, err := repo.DefaultDB.Channels()
 	if err != nil {
 		b.out <- bot.Message{Chat: bot.Chat{ID: msg.Chat.ID}, Text: "channels failed. " + err.Error(), Format: bot.Markdown}
 	}
