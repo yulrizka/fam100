@@ -10,7 +10,7 @@ var (
 	ExtraQuestionSeed = int64(0)
 )
 
-// Provider provides persistence functionalities for question and answers
+// Provider provides persistence functionality for question and answers
 type Provider interface {
 	// AddQuestion new to the DB
 	AddQuestion(q Question) error
