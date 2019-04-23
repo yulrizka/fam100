@@ -37,9 +37,10 @@ func TestBolt(t *testing.T) {
 
 	t.Run("nextQuestion", func(t *testing.T) {
 		seed, played := int64(0), 0
-		_, err := db.NextQuestion(seed, played, 10)
+		q, err := db.NextQuestion(seed, played, 10)
 		if err != nil {
 			t.Error(err)
 		}
+		t.Logf("question: +%v", q)
 	})
 }
