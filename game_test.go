@@ -4,31 +4,34 @@ import (
 	"math/rand"
 	"os"
 	"testing"
+
+	"github.com/yulrizka/fam100/model"
+	"github.com/yulrizka/fam100/repo"
 )
 
 func TestMain(m *testing.M) {
-	redisPrefix = "test_fam100"
+	repo.RedisPrefix = "test_fam100"
 	if _, err := InitQuestion("test.db"); err != nil {
 		panic(err)
 	}
-	DefaultDB.Init()
-	DefaultDB.Reset()
+	repo.DefaultDB.Init()
+	repo.DefaultDB.Reset()
 	retCode := m.Run()
 	os.Exit(retCode)
 }
 
 func TestQuestionString(t *testing.T) {
 	var seed, totalRoundPlayed = 7, 0
-	r, err := newRound(int64(seed), totalRoundPlayed, make(map[PlayerID]Player), 10)
+	r, err := newRound(int64(seed), totalRoundPlayed, make(map[model.PlayerID]model.Player), 10)
 	if err != nil {
 		t.Error(err)
 	}
 	r.state = Started
 	rand.Seed(7)
-	players := []Player{
-		Player{ID: "1", Name: "foo"},
-		Player{ID: "2", Name: "bar"},
-		Player{ID: "3", Name: "baz"},
+	players := []model.Player{
+		model.Player{ID: "1", Name: "foo"},
+		model.Player{ID: "2", Name: "bar"},
+		model.Player{ID: "3", Name: "baz"},
 	}
 	idx := rand.Perm(len(r.q.Answers))
 	for i := 0; i < len(players); i++ {

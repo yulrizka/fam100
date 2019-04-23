@@ -13,7 +13,7 @@ import (
 	"github.com/cyberdelia/go-metrics-graphite"
 	"github.com/rcrowley/go-metrics"
 	"github.com/uber-go/zap"
-	"github.com/yulrizka/fam100"
+	"github.com/yulrizka/fam100/repo"
 )
 
 var (
@@ -108,7 +108,7 @@ func initMetrics(b fam100Bot) {
 	}
 	go func() {
 		for range tick {
-			n, err := fam100.DefaultDB.ChannelCount()
+			n, err := repo.DefaultDB.ChannelCount()
 			if err != nil {
 				log.Error("retrieving total channel failed", zap.Error(err))
 				continue
@@ -116,7 +116,7 @@ func initMetrics(b fam100Bot) {
 				channelTotal.Update(int64(n))
 			}
 
-			n, err = fam100.DefaultDB.PlayerCount()
+			n, err = repo.DefaultDB.PlayerCount()
 			if err != nil {
 				log.Error("retrieving total player failed", zap.Error(err))
 				continue

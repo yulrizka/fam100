@@ -7,7 +7,10 @@ import (
 	"time"
 
 	"github.com/patrickmn/go-cache"
+	"github.com/pkg/errors"
 	"github.com/uber-go/zap"
+	"github.com/yulrizka/fam100/model"
+	"github.com/yulrizka/fam100/repo"
 )
 
 // Bot configuration
@@ -42,7 +45,7 @@ type Message interface{}
 // TextMessage represents a chat message
 type TextMessage struct {
 	ChanID     string
-	Player     Player
+	Player     model.Player
 	Text       string
 	ReceivedAt time.Time
 }
@@ -85,17 +88,8 @@ type roundAnswers struct {
 type RankMessage struct {
 	ChanID string
 	Round  int
-	Rank   Rank
+	Rank   model.Rank
 	Final  bool
-}
-
-// PlayerID is the player ID type
-type PlayerID string
-
-// Player of the game
-type Player struct {
-	ID   PlayerID
-	Name string
 }
 
 // State represents state of the round
@@ -119,9 +113,9 @@ type Game struct {
 	ChanName         string
 	State            State
 	TotalRoundPlayed int
-	players          map[PlayerID]Player
+	players          map[model.PlayerID]model.Player
 	seed             int64
-	rank             Rank
+	rank             model.Rank
 	currentRound     *round
 
 	In  chan Message
@@ -130,7 +124,8 @@ type Game struct {
 
 // NewGame create a new round
 func NewGame(chanID, chanName string, in, out chan Message) (r *Game, err error) {
-	seed, totalRoundPlayed, err := DefaultDB.nextGame(chanID)
+
+	seed, totalRoundPlayed, err := repo.DefaultDB.NextGame(chanID)
 	if err != nil {
 		return nil, err
 	}
@@ -140,7 +135,7 @@ func NewGame(chanID, chanName string, in, out chan Message) (r *Game, err error)
 		ChanID:           chanID,
 		ChanName:         chanName,
 		State:            Created,
-		players:          make(map[PlayerID]Player),
+		players:          make(map[model.PlayerID]model.Player),
 		seed:             seed,
 		TotalRoundPlayed: totalRoundPlayed,
 		In:               in,
@@ -178,12 +173,12 @@ func (g *Game) Start() {
 
 func (g *Game) startRound(currentRound int) error {
 	g.TotalRoundPlayed++
-	if err := DefaultDB.incRoundPlayed(g.ChanID); err != nil {
+	if err := repo.DefaultDB.IncRoundPlayed(g.ChanID); err != nil {
 		log.Error("failed to increase totalRoundPlayed", zap.Int("totalRoundPlayed", g.TotalRoundPlayed), zap.Error(err))
 	}
 
 	questionLimit := DefaultQuestionLimit
-	if limitConf, err := DefaultDB.ChannelConfig(g.ChanID, "questionLimit", ""); err == nil && limitConf != "" {
+	if limitConf, err := repo.DefaultDB.ChannelConfig(g.ChanID, "questionLimit", ""); err == nil && limitConf != "" {
 		if limit, err := strconv.ParseInt(limitConf, 10, 64); err == nil {
 			questionLimit = int(limit)
 		}
@@ -222,12 +217,16 @@ func (g *Game) startRound(currentRound int) error {
 				continue
 			}
 
-			if r.finised() {
+			if r.finished() {
 				timeLeftTick.Stop()
 				displayAnswerTick.Stop()
 				g.showAnswer(r)
 				r.state = RoundFinished
-				g.updateRanking(r.ranking())
+				err := g.updateRanking(r.ranking())
+				if err != nil {
+					log.Error("failed to update ranking", zap.Error(err))
+				}
+
 				g.Out <- StateMessage{ChanID: g.ChanID, State: RoundFinished, Round: currentRound, GameID: g.ID}
 				log.Info("Round finished", zap.String("chanID", g.ChanID), zap.Int64("gameID", g.ID), zap.Int64("roundID", r.id), zap.Bool("timeout", false))
 				gameFinishedTimer.UpdateSince(started)
@@ -250,7 +249,11 @@ func (g *Game) startRound(currentRound int) error {
 			timeLeftTick.Stop()
 			displayAnswerTick.Stop()
 			g.State = RoundFinished
-			g.updateRanking(r.ranking())
+			err := g.updateRanking(r.ranking())
+			if err != nil {
+				log.Error("failed to update ranking", zap.Error(err))
+			}
+
 			g.Out <- StateMessage{ChanID: g.ChanID, State: RoundTimeout, Round: currentRound, GameID: g.ID}
 			log.Info("Round finished", zap.String("chanID", g.ChanID), zap.Int64("gameID", g.ID), zap.Int64("roundID", r.id), zap.Bool("timeout", true))
 			showUnAnswered := true
@@ -289,9 +292,11 @@ func (g *Game) handleMessage(msg TextMessage, r *round) (handled bool) {
 	return false
 }
 
-func (g *Game) updateRanking(r Rank) {
+func (g *Game) updateRanking(r model.Rank) error {
 	g.rank = g.rank.Add(r)
-	DefaultDB.saveScore(g.ChanID, g.ChanName, r)
+	err := repo.DefaultDB.SaveScore(g.ChanID, g.ChanName, r)
+
+	return errors.Wrap(err, "failed to save score")
 }
 
 func (g *Game) CurrentQuestion() Question {
@@ -327,14 +332,14 @@ type round struct {
 	id        int64
 	q         Question
 	state     State
-	correct   []PlayerID // correct answer answered by a player, "" means not answered
-	players   map[PlayerID]Player
+	correct   []model.PlayerID // correct answer answered by a player, "" means not answered
+	players   map[model.PlayerID]model.Player
 	highlight map[int]bool
 
 	endAt time.Time
 }
 
-func newRound(seed int64, totalRoundPlayed int, players map[PlayerID]Player, questionLimit int) (*round, error) {
+func newRound(seed int64, totalRoundPlayed int, players map[model.PlayerID]model.Player, questionLimit int) (*round, error) {
 	q, err := NextQuestion(seed, totalRoundPlayed, questionLimit)
 	if err != nil {
 		return nil, err
@@ -343,7 +348,7 @@ func newRound(seed int64, totalRoundPlayed int, players map[PlayerID]Player, que
 	return &round{
 		id:        int64(rand.Int31()),
 		q:         q,
-		correct:   make([]PlayerID, len(q.Answers)),
+		correct:   make([]model.PlayerID, len(q.Answers)),
 		state:     Created,
 		players:   players,
 		highlight: make(map[int]bool),
@@ -386,7 +391,7 @@ func (r *round) questionText(gameID string, showUnAnswered bool) QNAMessage {
 	return msg
 }
 
-func (r *round) finised() bool {
+func (r *round) finished() bool {
 	answered := 0
 	for _, pID := range r.correct {
 		if pID != "" {
@@ -398,14 +403,14 @@ func (r *round) finised() bool {
 }
 
 // ranking generates a rank for current round which contains player, answers and score
-func (r *round) ranking() Rank {
-	var roundScores Rank
-	lookup := make(map[PlayerID]PlayerScore)
+func (r *round) ranking() model.Rank {
+	var roundScores model.Rank
+	lookup := make(map[model.PlayerID]model.PlayerScore)
 	for i, pID := range r.correct {
 		if pID != "" {
 			score := r.q.Answers[i].Score
 			if ps, ok := lookup[pID]; !ok {
-				lookup[pID] = PlayerScore{
+				lookup[pID] = model.PlayerScore{
 					PlayerID: pID,
 					Name:     r.players[pID].Name,
 					Score:    score,
@@ -429,7 +434,7 @@ func (r *round) ranking() Rank {
 	return roundScores
 }
 
-func (r *round) answer(p Player, text string) (correct, answered bool, index int) {
+func (r *round) answer(p model.Player, text string) (correct, answered bool, index int) {
 	if r.state != RoundStarted {
 		return false, false, -1
 	}

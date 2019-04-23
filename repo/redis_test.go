@@ -1,25 +1,35 @@
-package fam100
+package repo
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/yulrizka/fam100/model"
+)
 
 func TestSaveScore(t *testing.T) {
-	ranking := Rank{
+	ranking := model.Rank{
 		{PlayerID: "ID1", Name: "Name 1", Score: 15},
 		{PlayerID: "ID2", Name: "Name 2", Score: 14},
 		{PlayerID: "ID3", Name: "Name 3", Score: 13},
 		{PlayerID: "ID4", Name: "Name 4", Score: 12},
 		{PlayerID: "ID5", Name: "Name 5", Score: 11},
 	}
+	r := new(RedisDB)
+	err := r.Init()
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	chanID := "one"
 	chanName := "one channel"
 	for i := 0; i < 2; i++ {
-		if err := DefaultDB.saveScore(chanID, chanName, ranking); err != nil {
+		if err := r.SaveScore(chanID, chanName, ranking); err != nil {
 			t.Error(err)
 		}
 	}
 
 	// test ranking in specific channel
-	chanRank, err := DefaultDB.ChannelRanking(chanID, 100)
+	chanRank, err := r.ChannelRanking(chanID, 100)
 	if err != nil {
 		t.Error(err)
 	}
@@ -38,10 +48,10 @@ func TestSaveScore(t *testing.T) {
 	// test player rank
 	chanID2 := "two"
 	chanName2 := "two channel"
-	if err := DefaultDB.saveScore(chanID2, chanName2, ranking); err != nil {
+	if err := r.SaveScore(chanID2, chanName2, ranking); err != nil {
 		t.Error(err)
 	}
-	playerRank, err := DefaultDB.playerRanking(100)
+	playerRank, err := r.PlayerRanking(100)
 	if err != nil {
 		t.Error(err)
 	}
@@ -57,9 +67,9 @@ func TestSaveScore(t *testing.T) {
 		}
 	}
 
-	// test playerScore
-	var pid PlayerID = "ID1"
-	ps, err := DefaultDB.playerScore(pid)
+	// test PlayerScore
+	var pid model.PlayerID = "ID1"
+	ps, err := r.PlayerScore(pid)
 	if err != nil {
 		t.Error(err)
 	}
@@ -74,7 +84,7 @@ func TestSaveScore(t *testing.T) {
 	}
 
 	// test playerChannelScore
-	ps, err = DefaultDB.PlayerChannelScore(chanID, pid)
+	ps, err = r.PlayerChannelScore(chanID, pid)
 	if err != nil {
 		t.Error(err)
 	}
