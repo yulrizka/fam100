@@ -9,4 +9,10 @@ services:
     build: .
     depends_on:
       - redis
+    volumes:
+      - "./qna:/questions"
+    environment:
+      TELEGRAM_KEY: "${TELEGRAM_KEY}"
+      QUESTION_DB_PATH: "questions/test.db"
+      REDIS_ADDR: "redis:6379"
 

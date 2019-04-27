@@ -3,6 +3,7 @@ package repo
 import (
 	"fmt"
 	"hash/crc32"
+	"os"
 	"time"
 
 	"github.com/garyburd/redigo/redis"
@@ -40,11 +41,16 @@ func (r *RedisDB) Reset() error {
 }
 
 func (r *RedisDB) Init() (err error) {
+	addr := os.Getenv("REDIS_ADDR")
+	if addr == "" {
+		addr = ":6379"
+	}
+
 	r.pool = &redis.Pool{
 		MaxIdle:     3,
 		IdleTimeout: 240 * time.Second,
 		Dial: func() (redis.Conn, error) {
-			c, err := redis.Dial("tcp", ":6379")
+			c, err := redis.Dial("tcp", addr)
 			if err != nil {
 				return nil, err
 			}

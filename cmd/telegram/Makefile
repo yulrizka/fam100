@@ -4,7 +4,7 @@ HASH = $(shell git rev-parse --short HEAD)
 TAGS = $(shell git tag -l --points-at HEAD)
 TAGS_V = $(shell [ ! -z "$(TAGS)" ] && echo "_$(TAGS)")
 VERSION = "$(HASH)$(TAGS_V)"
-GOFLAGS   = GOOS=$(GOOS) GOARCH=$(GOARCH)
+GOFLAGS   = GOOS=$(GOOS) GOARCH=$(GOARCH) CGO_ENABLED=0
 GOLDFLAGS += -X main.VERSION=$(VERSION)
 GOLDFLAGS += -X main.BUILDTIME=$(BTIME_H)
 GOOPTS    = -ldflags "$(GOLDFLAGS)"
@@ -12,4 +12,4 @@ GOOPTS    = -ldflags "$(GOLDFLAGS)"
 .PHONY: linux
 linux:
 	@echo $(GOOPTS)
-	@GOOS=linux GOARCH=amd64 go build $(GOOPTS) -o fam100_$(VERSION)
+	@GOOS=linux GOARCH=amd64 go build -tags netgo $(GOOPTS) -o fam100

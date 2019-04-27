@@ -13,11 +13,10 @@ FROM builder_base AS builder
 WORKDIR /src
 ADD . /src
 
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go install -a -tags netgo -ldflags '-w -extldflags "-static"' ./cmd/telegram
-
+RUN cd cmd/telegram && make linux
 
 # final stage
 FROM alpine:latest
-RUN apk add --no-cache tzdata
-COPY --from=builder /go/bin/telegram fam100
+RUN apk add --no-cache tzdata ca-certificates
+COPY --from=builder /src/cmd/telegram/fam100 fam100
 CMD ["./fam100"]
