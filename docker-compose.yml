@@ -5,3 +5,8 @@ services:
     ports:
       - "6379:6379"
 
+  fam100:
+    build: .
+    depends_on:
+      - redis
+

@@ -193,7 +193,7 @@ func setupLogger(level zap.Level) {
 	case "TEXT":
 		encoder = zap.NewTextEncoder()
 	default:
-		encoder = zap.NewJSONEncoder()
+		encoder = zap.NewTextEncoder()
 	}
 
 	// init bot.log
