@@ -1,4 +1,4 @@
-package qa
+package qna
 
 import (
 	"bytes"
@@ -34,8 +34,8 @@ type Question struct {
 	lookup  map[string]int
 }
 
-// check answers gives the score for particular answer to a question
-func (q Question) checkAnswer(text string) (correct bool, score, index int) {
+// Check answers gives the score for particular answer to a question
+func (q Question) CheckAnswer(text string) (correct bool, score, index int) {
 	text = strings.TrimSpace(strings.ToLower(text))
 	if i, ok := q.lookup[text]; ok {
 		return true, q.Answers[i].Score, i

@@ -12,6 +12,7 @@ import (
 	"github.com/yulrizka/bot"
 	"github.com/yulrizka/fam100"
 	"github.com/yulrizka/fam100/model"
+	"github.com/yulrizka/fam100/qna"
 	"github.com/yulrizka/fam100/repo"
 )
 
@@ -25,6 +26,9 @@ type fam100Bot struct {
 	// channel to communicate with game
 	gameOut chan fam100.Message
 	quit    chan struct{}
+
+	// question database
+	qnaDB qna.Provider
 
 	cl bot.Client
 }
@@ -63,7 +67,6 @@ func (b *fam100Bot) handleInbox() {
 		case <-b.quit:
 			return
 		case rawMsg := <-b.in:
-			log.Info("handling message")
 			start := time.Now()
 			if rawMsg == nil {
 				log.Fatal("handleInbox input channel is closed")

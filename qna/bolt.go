@@ -1,4 +1,4 @@
-package qa
+package qna
 
 import (
 	"bytes"
@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/boltdb/bolt"
+	"github.com/pkg/errors"
 )
 
 var (
@@ -48,6 +49,15 @@ func NewBolt(dbPath string) (*Bolt, error) {
 	})
 	if err != nil {
 		return nil, err
+	}
+
+	c, err := d.Count()
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get question count")
+	}
+
+	if c == 0 {
+		return nil, errors.Wrap(err, "qot empty questions")
 	}
 
 	return &d, nil

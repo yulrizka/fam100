@@ -1,4 +1,4 @@
-package qa
+package qna
 
 import (
 	"strings"
@@ -27,7 +27,7 @@ func TestBolt(t *testing.T) {
 			strings.ToUpper(ans.Text[0]),
 		}
 		for _, text := range texts {
-			gCorrect, gScore, gIndex := q.checkAnswer(text)
+			gCorrect, gScore, gIndex := q.CheckAnswer(text)
 
 			if gCorrect != wCorrect || gScore != wScore {
 				t.Errorf("want: correct %t got %t, score %d got %d, index %d got %d", wCorrect, gCorrect, wScore, gScore, wIndex, gIndex)
