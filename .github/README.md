@@ -1,6 +1,7 @@
 # Fam100
 
-Famm100 is a text game library to play "Family Fued". Currently playable in telegram
+Famm100 is a text game library to play "Family Fued". Currently playable in telegram. 
+Start playing at [famili100 channel](https://web.telegram.org/#/im?p=@famili100)
 
 ![screenhost](fam100-screenshot.png)
 
