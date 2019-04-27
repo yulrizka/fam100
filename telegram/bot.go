@@ -8,10 +8,12 @@ import (
 	"strings"
 	"time"
 
+	"github.com/rcrowley/go-metrics"
 	"github.com/uber-go/zap"
 	"github.com/yulrizka/bot"
 	"github.com/yulrizka/fam100"
 	"github.com/yulrizka/fam100/model"
+	"github.com/yulrizka/fam100/qna"
 	"github.com/yulrizka/fam100/repo"
 )
 
@@ -25,6 +27,9 @@ type fam100Bot struct {
 	// channel to communicate with game
 	gameOut chan fam100.Message
 	quit    chan struct{}
+
+	// question database
+	qnaDB qna.Provider
 
 	cl bot.Client
 }
@@ -50,7 +55,6 @@ func (b *fam100Bot) Init(ctx context.Context, out chan bot.Message, cl bot.Clien
 // handleInbox handles incoming chat message
 func (b *fam100Bot) Handle(_ context.Context, rawMsg interface{}) (handled bool, modifiedMsg interface{}) {
 	//log.Info("got raw message", zap.Object("msg", rawMsg))
-	log.Info("handling message")
 	b.in <- rawMsg
 
 	return true, rawMsg
@@ -63,7 +67,6 @@ func (b *fam100Bot) handleInbox() {
 		case <-b.quit:
 			return
 		case rawMsg := <-b.in:
-			log.Info("handling message")
 			start := time.Now()
 			if rawMsg == nil {
 				log.Fatal("handleInbox input channel is closed")
@@ -82,28 +85,27 @@ func (b *fam100Bot) handleInbox() {
 				}
 				log.Debug("handleInbox got message", zap.Object("msg", msg))
 				msgType := msg.Chat.Type
+
+				var cmdHandler func(msg *bot.Message) bool
+				var cmdMetric metrics.Timer
+
+				// Handles private message to bot
 				if msgType == bot.Private {
 					messagePrivateCount.Inc(1)
 					log.Debug("Got private message", zap.Object("msg", msg))
 					if msg.From.ID == adminID {
 						switch {
 						case strings.HasPrefix(msg.Text, "/say"):
-							if b.cmdSay(msg) {
-								mainHandleSayTimer.UpdateSince(start)
-								mainHandleMessageTimer.UpdateSince(start)
-								continue
-							}
+							cmdHandler, cmdMetric = b.cmdSay, mainHandleSayTimer
 						case strings.HasPrefix(msg.Text, "/channels"):
-							if b.cmdChannels(msg) {
-								mainHandleChannelsTimer.UpdateSince(start)
-								mainHandleMessageTimer.UpdateSince(start)
-								continue
-							}
+							cmdHandler, cmdMetric = b.cmdChannels, mainHandleChannelsTimer
 						case strings.HasPrefix(msg.Text, "/broadcast"):
-							if b.cmdBroadcast(msg) {
-								mainHandleBrodcastTimer.UpdateSince(start)
-								mainHandleMessageTimer.UpdateSince(start)
-								continue
+							cmdHandler, cmdMetric = b.cmdBroadcast, mainHandleBrodcastTimer
+						}
+
+						if cmdHandler != nil {
+							if cmdHandler(msg) {
+								cmdMetric.UpdateSince(start)
 							}
 						}
 					}
@@ -112,30 +114,27 @@ func (b *fam100Bot) handleInbox() {
 					continue
 				}
 
-				// ## Handle Commands ##
+				// Handle public commands
 				switch msg.Text {
 				case "/join", "/join@" + b.name:
-					if b.cmdJoin(msg) {
-						mainHandleJoinTimer.UpdateSince(start)
-						mainHandleMessageTimer.UpdateSince(start)
-						continue
-					}
+					cmdHandler, cmdMetric = b.cmdJoin, mainHandleJoinTimer
 				case "/score", "/score@" + b.name:
-					if b.cmdScore(msg) {
-						mainHandleScoreTimer.UpdateSince(start)
+					cmdHandler, cmdMetric = b.cmdScore, mainHandleScoreTimer
+				case "/help", "/help@" + b.name:
+					// disabling to reduce outgoing message
+					// cmdHandler, cmdMetric = b.cmdHelp, mainHandleScoreTimer
+					continue
+				}
+				if cmdHandler != nil {
+					if cmdHandler(msg) {
+						// command was handled
+						cmdMetric.UpdateSince(start)
 						mainHandleMessageTimer.UpdateSince(start)
 						continue
 					}
-				case "/help", "/help@" + b.name:
-					continue
-					/*
-						if b.cmdHelp(msg) {
-							mainHandleHelpTimer.UpdateSince(start)
-							mainHandleMessageTimer.UpdateSince(start)
-							continue
-						}*/
 				}
 
+				// handle answers text
 				chanID := msg.Chat.ID
 				ch, ok := b.channels[chanID]
 				if chanID == "" || !ok {

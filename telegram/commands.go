@@ -39,7 +39,7 @@ func (b *fam100Bot) cmdJoin(msg *bot.Message) bool {
 		players := map[string]string{msg.From.ID: msg.From.FullName()}
 
 		gameIn := make(chan fam100.Message, gameInBufferSize)
-		game, err := fam100.NewGame(chanID, chanName, gameIn, b.gameOut)
+		game, err := fam100.NewGame(chanID, chanName, gameIn, b.gameOut, b.qnaDB)
 		if err != nil {
 			log.Error("creating a game", zap.String("chanID", chanID))
 			return true
@@ -47,6 +47,8 @@ func (b *fam100Bot) cmdJoin(msg *bot.Message) bool {
 
 		ch := &channel{ID: chanID, game: game, quorumPlayer: quorumPlayer, players: players}
 		b.channels[chanID] = ch
+
+		// quorum achieved, start the game
 		if len(ch.quorumPlayer) == minQuorum {
 			ch.game.Start()
 			return true
@@ -66,6 +68,7 @@ func (b *fam100Bot) cmdJoin(msg *bot.Message) bool {
 	ch.cancelTimer()
 	ch.quorumPlayer[msg.From.ID] = true
 	ch.players[msg.From.ID] = msg.From.FullName()
+
 	if len(ch.quorumPlayer) == minQuorum {
 		if ch.cancelNotifyTimer != nil {
 			ch.cancelNotifyTimer()
