@@ -14,6 +14,6 @@ services:
       - "./qna:/qna"
     environment:
       TELEGRAM_KEY: "${TELEGRAM_KEY}"
-      QUESTION_DB_PATH: "qna/question.txt"
+      QUESTION_DB_PATH: "qna/questions.txt"
       REDIS_ADDR: "redis:6379"
 

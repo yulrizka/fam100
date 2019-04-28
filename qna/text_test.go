@@ -5,7 +5,7 @@ import (
 )
 
 func TestNewText(t *testing.T) {
-	text, err := NewText("question.txt")
+	text, err := NewText("questions.txt")
 	if err != nil {
 		t.Fatal(err)
 	}
