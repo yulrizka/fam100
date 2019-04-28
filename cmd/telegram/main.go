@@ -108,6 +108,7 @@ func main() {
 	setupLogger(*logLevel)
 	fam100.SetLogger(log)
 	log.Info("Fam100 STARTED", zap.String("version", VERSION), zap.String("buildtime", BUILDTIME))
+	log.Info("Params", zap.Int("quorum", minQuorum))
 	err := postEvent("startup", "startup", fmt.Sprintf("startup version:%s buildtime:%s", VERSION, BUILDTIME))
 	if err != nil {
 		log.Error("post event failed", zap.Error(err))
@@ -122,13 +123,13 @@ func main() {
 	fam100.RoundDuration = time.Duration(roundDuration) * time.Second
 
 	// Initialize questions database
-	dbPath := "fam100.db"
+	dbPath := "qna/famili100.txt"
 	if path := os.Getenv("QUESTION_DB_PATH"); path != "" {
 		dbPath = path
 	}
 	log.Info("loading question DB", zap.String("path", dbPath))
 
-	qnaDB, err := qna.NewBolt(dbPath)
+	qnaDB, err := qna.NewText(dbPath)
 	if err != nil {
 		log.Fatal("Failed loading question DB", zap.String("path", dbPath), zap.Error(err))
 	}
@@ -149,14 +150,6 @@ func main() {
 	plugin.qnaDB = qnaDB
 
 	log.Info("Question limit ", zap.Int("fam100.DefaultQuestionLimit", fam100.DefaultQuestionLimit))
-
-	defer func() {
-		if r := recover(); r != nil {
-			qnaDB.Close()
-			panic(r)
-		}
-		qnaDB.Close()
-	}()
 
 	// initialize database for ranking and statistics
 	if err := repo.DefaultDB.Init(); err != nil {

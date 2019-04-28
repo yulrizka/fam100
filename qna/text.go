@@ -31,7 +31,10 @@ func NewText(path string) (*Text, error) {
 	i := 0
 	for s.Scan() {
 		i++
-		q := scanQuestionRaw(s.Text())
+		q, ok := scanQuestionRaw(s.Text())
+		if !ok {
+			continue
+		}
 		q.ID = i
 		if err := t.AddQuestion(q); err != nil {
 			return nil, errors.Wrapf(err, "failed adding question at line %d", i)
@@ -77,17 +80,20 @@ func (t *Text) Count() (int, error) {
 	return len(t.questions), nil
 }
 
-func scanQuestionRaw(s string) Question {
+func scanQuestionRaw(s string) (Question, bool) {
 	var q Question
+
+	// apa yang berhubungan dengan tarzan*30:hutan*21:hewan*16:teriakan auoo / auoo*12:jane*7:bergelantungan*3:tali / akar*
 	fields := strings.Split(s, "*")
 	if len(fields) == 0 {
-		return q
+		return q, false
 	}
+	q.lookup = make(map[string]int)
 	s = strings.ToLower(s)
-	q.Text = fields[0]
-	fields = fields[1:]
+	q.Text = fields[0]  // question "apa yang berhubungan dengan tarzan"
+	fields = fields[1:] // [30:hutan, 21:hewan, 16:teriakan auoo / auoo, 12:jane, 7:bergelantungan, 3:tali / akar*]
 
-	for _, rawAns := range fields {
+	for ansIndex, rawAns := range fields {
 		rawAns = strings.TrimSpace(rawAns)
 		var a Answer
 		if i := strings.Index(rawAns, ":"); i > 0 {
@@ -100,12 +106,16 @@ func scanQuestionRaw(s string) Question {
 		if rawAns == "" {
 			continue
 		}
+
+		// teriakan auoo / auoo
 		alias := strings.Split(rawAns, "/")
 		for _, answer := range alias {
 			text := strings.TrimSpace(string(answer))
 			a.Text = append(a.Text, text)
+			q.lookup[text] = ansIndex
 		}
 		q.Answers = append(q.Answers, a)
 	}
-	return q
+
+	return q, true
 }
