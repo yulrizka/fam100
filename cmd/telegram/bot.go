@@ -125,6 +125,7 @@ func (b *fam100Bot) handleInbox() {
 					// cmdHandler, cmdMetric = b.cmdHelp, mainHandleScoreTimer
 					continue
 				}
+
 				if cmdHandler != nil {
 					if cmdHandler(msg) {
 						// command was handled

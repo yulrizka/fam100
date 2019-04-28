@@ -219,7 +219,7 @@ func (t *Telegram) UserName() string {
 	return t.username
 }
 
-// AddPlugin add processing module to telegram
+//AddPlugin add processing module to telegram
 func (t *Telegram) AddPlugins(plugins ...Plugin) error {
 	if len(plugins) == 0 {
 		return nil

@@ -19,12 +19,12 @@ func Test_Game(t *testing.T) {
 		t.Fatalf("failed to reset database: %v", err)
 	}
 
-	questionDB, err := qna.NewBolt("qna/test.db")
+	questionDB, err := qna.NewText("qna/famili100.txt")
 	if err != nil {
 		t.Fatalf("failed to load questions: %v", err)
 	}
 
-	t.Run("test questionStrng", func(t *testing.T) {
+	t.Run("test questionString", func(t *testing.T) {
 		var seed, totalRoundPlayed = 7, 0
 
 		players := map[model.PlayerID]model.Player{

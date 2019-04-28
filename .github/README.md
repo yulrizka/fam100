@@ -1,11 +1,11 @@
 # Fam100
 
-Famm100 is a text game library to play "Family Fued". Currently playable in telegram. 
+Famm100 is a text game go application to play "Family Feud". Currently playable for telegram. 
 Start playing at [famili100 channel](https://web.telegram.org/#/im?p=@famili100)
 
 ![screenhost](fam100-screenshot.png)
 
-Start the game with `/join` command. After enough people join and reach the quorum
+Start the game with `/join` command. After enough people join and reach the quorum,
 the bot will start the game by delivering questions. People can immediately join the game 
 and answer the questions. 
 
@@ -18,10 +18,11 @@ First you need to acquire TELEGRAM_KEY from [telegram](https://core.telegram.org
  
 ### Docker
 
-To run the bot with docker, update docker-compose.yml with your TELEGRAM_KEY 
+To run the bot with docker, update docker-compose.yml with your TELEGRAM_KEY. Replace
+`"${TELEGRAM_KEY}"` with the bot token you acquired before (eg `"abcdefg1234"`)
 
 ```bash
-$ docker-compose up
+$ docker-compose up --build
 ```
 
 ### Normal go build
@@ -40,4 +41,4 @@ Telegram and Slack.
 
 # Contributors
 
-* Ahmy Yulrizka (yulrizka@gmail.com)
+* Ahmy Yulrizka (@yulrizka)

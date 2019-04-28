@@ -1,7 +1,6 @@
 module github.com/yulrizka/fam100
 
 require (
-	github.com/boltdb/bolt v0.0.0-20161121165143-0d9f544bb94a
 	github.com/cyberdelia/go-metrics-graphite v0.0.0-20151204233354-7e54b5c2aa6e
 	github.com/garyburd/redigo v0.0.0-20161122183206-d7de57ceb51b
 	github.com/patrickmn/go-cache v0.0.0-20161125234819-e7a9def80f35
@@ -12,8 +11,6 @@ require (
 	github.com/uber-go/zap v0.0.0-20161123233923-11e8d8f6b3c9
 	github.com/yulrizka/bot v0.2.4
 	go.uber.org/atomic v1.3.2 // indirect
-	golang.org/x/net v0.0.0-20161116075034-4971afdc2f16 // indirect
-	golang.org/x/sys v0.0.0-20161202080326-ca83bd2cb9ab // indirect
 )
 
 // replace github.com/yulrizka/bot v0.2.4 => ../bot
